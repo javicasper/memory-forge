@@ -2,12 +2,12 @@ name: CI
 
 on:
   push:
-    branches: [main, master]
+    branches: [master]
     paths:
       - 'tools/embeddings/**'
       - '.github/workflows/ci.yml'
   pull_request:
-    branches: [main, master]
+    branches: [master]
     paths:
       - 'tools/embeddings/**'
       - '.github/workflows/ci.yml'
