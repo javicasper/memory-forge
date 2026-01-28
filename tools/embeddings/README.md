@@ -103,11 +103,8 @@ Búsqueda SEMÁNTICA (con embeddings):
 ### Opción 1: Instalación rápida con npm (recomendada)
 
 ```bash
-# Instalar globalmente
-npm install -g @memory-forge/embeddings
-
 # Añadir a Claude Code (en el directorio de tu proyecto)
-claude mcp add memory-forge -- npx -y @memory-forge/embeddings
+claude mcp add memory-forge -- npx -y -p @memory-forge/embeddings memory-forge-mcp
 ```
 
 ¡Listo! El MCP server se configura automáticamente y usa el directorio actual como raíz del proyecto.
@@ -157,7 +154,7 @@ O para instalación local:
 Para compartir la configuración con tu equipo, usa scope de proyecto:
 
 ```bash
-claude mcp add --scope project memory-forge -- npx -y @memory-forge/embeddings
+claude mcp add --scope project memory-forge -- npx -y -p @memory-forge/embeddings memory-forge-mcp
 ```
 
 Esto crea `.mcp.json` en la raíz del proyecto (añádelo a git).

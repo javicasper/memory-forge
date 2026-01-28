@@ -5,7 +5,7 @@
   "type": "module",
   "main": "dist/mcp-server.js",
   "bin": {
-    "@memory-forge/embeddings": "dist/mcp-server.js",
+    "memory-forge-embeddings": "dist/mcp-server.js",
     "memory-forge": "dist/index.js",
     "memory-forge-mcp": "dist/mcp-server.js"
   },
