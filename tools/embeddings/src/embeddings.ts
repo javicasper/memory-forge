@@ -15,6 +15,45 @@ const EMBEDDING_DIMENSION = 384;
 let embeddingPipeline: FeatureExtractionPipeline | null = null;
 let initPromise: Promise<FeatureExtractionPipeline> | null = null;
 
+// Retry configuration for model loading
+const MAX_RETRIES = 3;
+const RETRY_DELAY_MS = 2000;
+
+/**
+ * Sleep for a given number of milliseconds
+ */
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+/**
+ * Load the model with retry logic
+ */
+async function loadModelWithRetry(): Promise<FeatureExtractionPipeline> {
+  let lastError: Error | null = null;
+
+  for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
+    try {
+      console.log(`Loading embedding model (attempt ${attempt}/${MAX_RETRIES})...`);
+      const pipe = await pipeline('feature-extraction', MODEL_NAME, {
+        quantized: true, // Use quantized model for smaller size
+      }) as FeatureExtractionPipeline;
+      console.log('Embedding model loaded.');
+      return pipe;
+    } catch (error) {
+      lastError = error as Error;
+      console.error(`Failed to load model (attempt ${attempt}/${MAX_RETRIES}):`, lastError.message);
+
+      if (attempt < MAX_RETRIES) {
+        console.log(`Retrying in ${RETRY_DELAY_MS / 1000}s...`);
+        await sleep(RETRY_DELAY_MS);
+      }
+    }
+  }
+
+  throw new Error(`Failed to load embedding model after ${MAX_RETRIES} attempts: ${lastError?.message}`);
+}
+
 /**
  * Initialize the embedding pipeline (lazy, singleton)
  */
@@ -28,11 +67,7 @@ async function initPipeline(): Promise<FeatureExtractionPipeline> {
   }
 
   initPromise = (async () => {
-    console.log('Loading embedding model (first run may download ~22MB)...');
-    embeddingPipeline = await pipeline('feature-extraction', MODEL_NAME, {
-      quantized: true, // Use quantized model for smaller size
-    }) as FeatureExtractionPipeline;
-    console.log('Embedding model loaded.');
+    embeddingPipeline = await loadModelWithRetry();
     return embeddingPipeline;
   })();
 
