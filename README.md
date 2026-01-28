@@ -389,8 +389,48 @@ Contributions are welcome! Please read [CONTRIBUTING.md](CONTRIBUTING.md) for gu
 
 MIT License - see [LICENSE](LICENSE) for details.
 
+## Inspired By
+
+Memory Forge builds on ideas from these excellent projects:
+
+### Learning Systems
+
+- **[Claudeception](https://github.com/blader/Claudeception)** by [@blader](https://github.com/blader) - The original autonomous skill extraction system for Claude Code. Pioneered the concept of "skills that create skills" and inspired our extraction logic.
+
+- **[Claude-Reflect](https://github.com/BayramAnnakov/claude-reflect)** by [@BayramAnnakov](https://github.com/BayramAnnakov) - Introduced the pattern of capturing corrections and syncing to both CLAUDE.md and AGENTS.md. Inspired our cross-tool compatibility approach.
+
+- **[Claude-Reflect-System](https://github.com/haddock-development/claude-reflect-system)** by [@haddock-development](https://github.com/haddock-development) - Combined skill creation with correction learning. Influenced our decision framework.
+
+### Research & Standards
+
+- **[Voyager](https://arxiv.org/abs/2305.16291)** (Wang et al., 2023) - Demonstrated skill libraries for game-playing agents, proving that agents can build reusable knowledge over time.
+
+- **[CASCADE](https://arxiv.org/abs/2407.00170)** (2024) - Introduced "meta-skills" (skills for acquiring skills), which inspired automatic skill extraction.
+
+- **[Reflexion](https://arxiv.org/abs/2303.11366)** (Shinn et al., 2023) - Showed that self-reflection improves agent performance, influencing our evaluation protocol.
+
+- **[AGENTS.md Standard](https://agents.md/)** - The open standard under the [Agentic AI Foundation](https://www.linuxfoundation.org/press/linux-foundation-announces-the-formation-of-the-agentic-ai-foundation) (Linux Foundation) that enables cross-tool compatibility.
+
+- **[Agent Skills](https://www.anthropic.com/engineering/equipping-agents-for-the-real-world-with-agent-skills)** by Anthropic - The open standard for portable skills across AI coding tools.
+
+### Resources
+
+- **[Awesome Claude Skills](https://github.com/travisvn/awesome-claude-skills)** - Curated collection of Claude Code skills
+- **[Claude Code Skills Deep Dive](https://mikhail.io/2025/10/claude-code-skills/)** - Technical analysis of skills architecture
+- **[CLAUDE.md in Monorepos](https://github.com/shanraisshan/claude-code-best-practice)** - Best practices for distributed documentation
+
+## What Memory Forge Adds
+
+While standing on the shoulders of these projects, Memory Forge contributes:
+
+1. **Monorepo-native design** - First-class support for distributed CLAUDE.md/AGENTS.md and module-specific skills
+2. **True CLI agnosticism** - Works identically across Claude Code, OpenCode, Codex, Cursor, and others
+3. **Automatic context file sync** - Keeps CLAUDE.md and AGENTS.md in sync for mixed-tool teams
+4. **Smart routing** - Decides whether knowledge belongs in docs or skills, and which module's docs
+
 ## Acknowledgments
 
-- Anthropic for Claude Code and the skills system
-- The open source community for inspiration and feedback
-- Research teams behind Voyager, CASCADE, and Reflexion
+- Anthropic for Claude Code and the Agent Skills standard
+- OpenAI for AGENTS.md and contributing it to the Linux Foundation
+- The Agentic AI Foundation for stewarding open standards
+- All the developers who built and shared the projects above
