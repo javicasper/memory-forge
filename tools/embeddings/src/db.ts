@@ -222,7 +222,7 @@ export function removeFile(projectRoot: string, filePath: string): void {
  */
 export function getAllChunks(
   projectRoot: string,
-  sourceTypes?: Array<'skill' | 'claude-md' | 'agents-md'>
+  sourceTypes?: Array<'skill' | 'claude-md' | 'agents-md' | 'knowledge'>
 ): DbChunk[] {
   const database = initDatabase(projectRoot);
 
@@ -264,6 +264,7 @@ export function getIndexStats(projectRoot: string): IndexStats {
       skillFiles: 0,
       claudeMdFiles: 0,
       agentsMdFiles: 0,
+      knowledgeFiles: 0,
       lastIndexed: null,
     };
   }
@@ -292,6 +293,11 @@ export function getIndexStats(projectRoot: string): IndexStats {
       .prepare("SELECT COUNT(DISTINCT source_file) as count FROM chunks WHERE source_type = 'agents-md'")
       .get() as any
   ).count;
+  const knowledgeFiles = (
+    database
+      .prepare("SELECT COUNT(DISTINCT source_file) as count FROM chunks WHERE source_type = 'knowledge'")
+      .get() as any
+  ).count;
 
   const lastIndexedRow = database
     .prepare('SELECT indexed_at FROM files ORDER BY indexed_at DESC LIMIT 1')
@@ -303,6 +309,7 @@ export function getIndexStats(projectRoot: string): IndexStats {
     skillFiles,
     claudeMdFiles,
     agentsMdFiles,
+    knowledgeFiles,
     lastIndexed: lastIndexedRow ? new Date(lastIndexedRow.indexed_at) : null,
   };
 }

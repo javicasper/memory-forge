@@ -1,100 +1,116 @@
 /**
  * Sync module - File discovery and change detection
+ *
+ * According to SPEC:
+ * - Only index files in knowledge/ directory
+ * - CLAUDE.md, AGENTS.md, .claude/, .codex/, .opencode/ are NOT indexed
  */
 
-import { readdirSync, existsSync } from 'fs';
+import { readdirSync, existsSync, readFileSync, writeFileSync } from 'fs';
 import { join, relative } from 'path';
 import { SyncResult } from './types.js';
-import { calculateFileHash, parseFile, ParseResult } from './chunker.js';
+import { calculateFileHash, parseFile } from './chunker.js';
 import { generateEmbeddings } from './embeddings.js';
 import { upsertFileChunks, removeFile, getAllFileIndexes, initDatabase } from './db.js';
+import { isIndexable, computeHash } from './forge.js';
 
-const CONTEXT_FILE_NAMES = ['CLAUDE.md', 'AGENTS.md'];
+// ============================================================================
+// MANIFEST (for incremental indexing)
+// ============================================================================
 
-/**
- * Recursively find files in directory
- */
-function findFiles(dir: string): string[] {
-  const results: string[] = [];
+interface Manifest {
+  files: Record<string, string>; // path -> content hash
+  lastIndexed: string;
+}
 
-  // Simple recursive search for now
-  function walkDir(currentDir: string) {
-    if (!existsSync(currentDir)) {
-      return;
-    }
+function getManifestPath(projectRoot: string): string {
+  return join(projectRoot, '.memory-forge', 'manifest.json');
+}
 
+function loadManifest(projectRoot: string): Manifest {
+  const manifestPath = getManifestPath(projectRoot);
+  if (existsSync(manifestPath)) {
     try {
-      const entries = readdirSync(currentDir, { withFileTypes: true });
-
-      for (const entry of entries) {
-        const fullPath = join(currentDir, entry.name);
-
-        if (entry.isDirectory()) {
-          // Skip common ignored directories
-          if (
-            ['node_modules', '.git', 'dist', 'build', '.memory-forge'].includes(
-              entry.name
-            )
-          ) {
-            continue;
-          }
-          walkDir(fullPath);
-        } else if (entry.isFile()) {
-          results.push(fullPath);
-        }
-      }
+      return JSON.parse(readFileSync(manifestPath, 'utf-8'));
     } catch {
-      // Ignore permission errors
+      // Invalid manifest, start fresh
     }
   }
+  return { files: {}, lastIndexed: '' };
+}
 
-  walkDir(dir);
+function saveManifest(projectRoot: string, manifest: Manifest): void {
+  const manifestPath = getManifestPath(projectRoot);
+  const dir = join(projectRoot, '.memory-forge');
+  if (!existsSync(dir)) {
+    const { mkdirSync } = require('fs');
+    mkdirSync(dir, { recursive: true });
+  }
+  writeFileSync(manifestPath, JSON.stringify(manifest, null, 2), 'utf-8');
+}
+
+// ============================================================================
+// FILE DISCOVERY (updated for SPEC)
+// ============================================================================
+
+/**
+ * Recursively find markdown files in knowledge/ directory only
+ */
+function findKnowledgeFiles(dir: string): string[] {
+  const results: string[] = [];
+
+  if (!existsSync(dir)) {
+    return results;
+  }
+
+  try {
+    const entries = readdirSync(dir, { withFileTypes: true });
+
+    for (const entry of entries) {
+      const fullPath = join(dir, entry.name);
+
+      if (entry.isDirectory()) {
+        // Recurse into subdirectories
+        results.push(...findKnowledgeFiles(fullPath));
+      } else if (entry.isFile() && entry.name.endsWith('.md')) {
+        results.push(fullPath);
+      }
+    }
+  } catch {
+    // Ignore permission errors
+  }
+
   return results;
 }
 
 /**
  * Discover all indexable files in a project
+ * According to SPEC: Only files in knowledge/ directory
  */
 export function discoverFiles(projectRoot: string): string[] {
-  const allFiles = findFiles(projectRoot);
-  const indexableFiles: string[] = [];
+  const knowledgeDir = join(projectRoot, 'knowledge');
+  const files = findKnowledgeFiles(knowledgeDir);
 
-  for (const file of allFiles) {
-    const fileName = file.split('/').pop() || '';
+  // Filter to ensure only indexable files (double-check)
+  return files.filter((file) => {
     const relativePath = relative(projectRoot, file);
-
-    // Check for SKILL.md files in skill directories
-    if (fileName === 'SKILL.md') {
-      const pathParts = relativePath.split('/');
-      // Must be in a skills directory structure
-      if (
-        pathParts.some((p) => ['skills', 'skill'].includes(p)) ||
-        pathParts.includes('.claude') ||
-        pathParts.includes('.opencode') ||
-        pathParts.includes('.codex')
-      ) {
-        indexableFiles.push(file);
-      }
-    }
-
-    // Check for context files (CLAUDE.md, AGENTS.md)
-    if (CONTEXT_FILE_NAMES.includes(fileName)) {
-      indexableFiles.push(file);
-    }
-  }
-
-  return indexableFiles;
+    return isIndexable(relativePath);
+  });
 }
 
+// ============================================================================
+// CHANGE DETECTION
+// ============================================================================
+
 /**
- * Get files that need indexing (new or changed)
+ * Get files that need indexing (new or changed) using content hash
  */
 export function getFilesToIndex(
   projectRoot: string,
   files: string[]
 ): { toIndex: string[]; toRemove: string[]; unchanged: string[] } {
+  const manifest = loadManifest(projectRoot);
   const indexed = getAllFileIndexes(projectRoot);
-  const indexedMap = new Map(indexed.map((f) => [f.path, f]));
 
   const toIndex: string[] = [];
   const unchanged: string[] = [];
@@ -102,32 +118,40 @@ export function getFilesToIndex(
 
   // Check each file
   for (const file of files) {
-    const existing = indexedMap.get(file);
+    const content = readFileSync(file, 'utf-8');
+    const contentHash = computeHash(content);
+    const manifestHash = manifest.files[file];
 
-    if (!existing) {
-      // New file
+    if (!manifestHash || manifestHash !== contentHash) {
+      // New or changed file
       toIndex.push(file);
     } else {
-      // Check if changed
-      const currentHash = calculateFileHash(file);
-      if (currentHash !== existing.hash) {
-        toIndex.push(file);
-      } else {
-        unchanged.push(file);
-      }
+      // Unchanged
+      unchanged.push(file);
     }
   }
 
-  // Find removed files
+  // Find removed files (in manifest but not in current files)
   const toRemove: string[] = [];
+  for (const existingPath of Object.keys(manifest.files)) {
+    if (!currentFiles.has(existingPath)) {
+      toRemove.push(existingPath);
+    }
+  }
+
+  // Also check indexed files not in current set
   for (const existing of indexed) {
-    if (!currentFiles.has(existing.path)) {
+    if (!currentFiles.has(existing.path) && !toRemove.includes(existing.path)) {
       toRemove.push(existing.path);
     }
   }
 
   return { toIndex, toRemove, unchanged };
 }
+
+// ============================================================================
+// INDEXING
+// ============================================================================
 
 /**
  * Index a single file
@@ -162,16 +186,67 @@ export async function indexFile(
   return chunks.length;
 }
 
+// ============================================================================
+// SYNC
+// ============================================================================
+
+/**
+ * Ensure index is fresh by checking for changes since last index
+ * Called automatically before search to guarantee up-to-date results
+ *
+ * Returns true if any reindexing was done
+ */
+export async function ensureIndexFresh(projectRoot: string): Promise<boolean> {
+  // Initialize database if needed
+  initDatabase(projectRoot);
+
+  // Discover current files
+  const files = discoverFiles(projectRoot);
+
+  // Get files that need indexing
+  const { toIndex, toRemove } = getFilesToIndex(projectRoot, files);
+
+  // If nothing changed, return early
+  if (toIndex.length === 0 && toRemove.length === 0) {
+    return false;
+  }
+
+  // Load manifest for updates
+  const manifest = loadManifest(projectRoot);
+
+  // Remove deleted files
+  for (const file of toRemove) {
+    removeFile(projectRoot, file);
+    delete manifest.files[file];
+  }
+
+  // Index new/changed files
+  for (const file of toIndex) {
+    await indexFile(projectRoot, file);
+
+    // Update manifest with new hash
+    const content = readFileSync(file, 'utf-8');
+    manifest.files[file] = computeHash(content);
+  }
+
+  // Save updated manifest
+  manifest.lastIndexed = new Date().toISOString();
+  saveManifest(projectRoot, manifest);
+
+  return true;
+}
+
 /**
  * Full sync: discover, detect changes, and index
+ * According to SPEC: Only indexes knowledge/ directory
  */
 export async function syncProject(projectRoot: string): Promise<SyncResult> {
   // Initialize database
   initDatabase(projectRoot);
 
-  // Discover files
+  // Discover files in knowledge/ only
   const files = discoverFiles(projectRoot);
-  console.log(`Found ${files.length} knowledge file(s)`);
+  console.log(`Found ${files.length} knowledge file(s) in knowledge/`);
 
   // Determine what needs indexing
   const { toIndex, toRemove, unchanged } = getFilesToIndex(projectRoot, files);
@@ -183,32 +258,43 @@ export async function syncProject(projectRoot: string): Promise<SyncResult> {
     unchanged,
   };
 
+  // Update manifest
+  const manifest = loadManifest(projectRoot);
+
   // Remove deleted files
   for (const file of toRemove) {
     removeFile(projectRoot, file);
+    delete manifest.files[file];
     result.removed.push(file);
     console.log(`Removed: ${relative(projectRoot, file)}`);
   }
 
   // Index new/changed files
   for (const file of toIndex) {
-    const existing = getAllFileIndexes(projectRoot).find((f) => f.path === file);
-    const isNew = !existing;
+    const wasIndexed = manifest.files[file] !== undefined;
 
     console.log(
-      `${isNew ? 'Indexing' : 'Re-indexing'}: ${relative(projectRoot, file)}`
+      `${wasIndexed ? 'Re-indexing' : 'Indexing'}: ${relative(projectRoot, file)}`
     );
 
     const chunkCount = await indexFile(projectRoot, file);
 
-    if (isNew) {
-      result.added.push(file);
-    } else {
+    // Update manifest with new hash
+    const content = readFileSync(file, 'utf-8');
+    manifest.files[file] = computeHash(content);
+
+    if (wasIndexed) {
       result.updated.push(file);
+    } else {
+      result.added.push(file);
     }
 
     console.log(`  → ${chunkCount} chunk(s)`);
   }
+
+  // Save updated manifest
+  manifest.lastIndexed = new Date().toISOString();
+  saveManifest(projectRoot, manifest);
 
   return result;
 }

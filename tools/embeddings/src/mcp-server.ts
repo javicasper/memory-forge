@@ -2,8 +2,12 @@
 /**
  * Memory Forge MCP Server
  *
- * Provides semantic search over knowledge stored in CLAUDE.md and SKILL.md files.
- * Claude Code can use this to retrieve relevant context on-demand.
+ * Provides semantic search over knowledge stored in knowledge/ directory.
+ * CLAUDE.md, AGENTS.md, and special directories are NOT indexed but audited.
+ *
+ * According to SPEC:
+ * - Only knowledge/ is indexed (source of truth)
+ * - Autoload files are audited for token usage
  */
 
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
@@ -18,6 +22,7 @@ import {
   getMemoryStats,
   forgetStaleFiles,
 } from './db.js';
+import { saveKnowledge, audit, formatAuditResult } from './forge.js';
 
 // Get project root from environment or current directory
 const PROJECT_ROOT = process.env.MEMORY_FORGE_PROJECT_ROOT || process.cwd();
@@ -33,7 +38,7 @@ const server = new McpServer({
  */
 server.tool(
   'search_knowledge',
-  'Search for relevant knowledge in CLAUDE.md and SKILL.md files. Use this when you need context about errors, patterns, or conventions in the codebase.',
+  'Search for relevant knowledge in the knowledge/ directory. Use this when you need context about errors, patterns, or conventions in the codebase.',
   {
     query: z.string().describe('The search query - can be an error message, concept, or question'),
     limit: z.number().optional().default(3).describe('Maximum number of results to return'),
@@ -105,11 +110,11 @@ server.tool(
 
 /**
  * Tool: index_knowledge
- * Index or re-index knowledge files
+ * Index or re-index knowledge files in knowledge/ directory
  */
 server.tool(
   'index_knowledge',
-  'Index or re-index knowledge files (CLAUDE.md, AGENTS.md, SKILL.md). Run this after adding new skills or updating documentation.',
+  'Index or re-index knowledge files in the knowledge/ directory. Run this after adding new knowledge or updating documentation.',
   {
     force: z
       .boolean()
@@ -209,6 +214,41 @@ server.tool(
 );
 
 /**
+ * Tool: audit_knowledge
+ * Audit autoload files for token usage (CLAUDE.md, AGENTS.md, skills)
+ */
+server.tool(
+  'audit_knowledge',
+  'Audit autoload files (CLAUDE.md, AGENTS.md, .claude/, .codex/, .opencode/) for token usage. Use this to detect files that are consuming too many tokens and should be moved to knowledge/.',
+  {},
+  async () => {
+    try {
+      const result = audit(PROJECT_ROOT);
+      const formatted = formatAuditResult(result, PROJECT_ROOT);
+
+      return {
+        content: [
+          {
+            type: 'text' as const,
+            text: formatted,
+          },
+        ],
+      };
+    } catch (error) {
+      return {
+        content: [
+          {
+            type: 'text' as const,
+            text: `Error auditing knowledge: ${(error as Error).message}`,
+          },
+        ],
+        isError: true,
+      };
+    }
+  }
+);
+
+/**
  * Tool: forget_knowledge
  * Remove stale memories based on retention policy
  */
@@ -277,6 +317,68 @@ server.tool(
           {
             type: 'text' as const,
             text: `Error forgetting knowledge: ${(error as Error).message}`,
+          },
+        ],
+        isError: true,
+      };
+    }
+  }
+);
+
+/**
+ * Tool: save_knowledge
+ * Save valuable knowledge to the knowledge/ directory
+ */
+server.tool(
+  'save_knowledge',
+  'Save valuable knowledge to the knowledge/ directory (source of truth). Use this when you have discovered a reusable pattern, a fix for a specific error, or general project conventions.',
+  {
+    type: z.enum(['skill', 'context']).describe('Type of knowledge: "skill" for specific error fixes/workarounds, "context" for general patterns/conventions'),
+    name: z.string().describe('Kebab-case name for the skill (e.g., "mongodb-connection-fix") or title for the context section'),
+    content: z.string().describe('The core knowledge/solution to save. Markdown format supported.'),
+    description: z.string().optional().describe('Brief description for the skill frontmatter (required for type="skill")'),
+    trigger: z.string().optional().describe('Conditions that trigger this skill (required for type="skill")'),
+    problem: z.string().optional().describe('Description of the problem this skill solves (required for type="skill")'),
+    importance: z.number().min(1).max(10).optional().default(5).describe('Importance of this knowledge (1-10)'),
+  },
+  async ({ type, name, content, description, trigger, problem, importance }) => {
+    try {
+      const result = await saveKnowledge(PROJECT_ROOT, {
+        type,
+        name,
+        content,
+        description,
+        trigger,
+        problem,
+        importance,
+      });
+
+      if (!result.success) {
+        return {
+          content: [
+            {
+              type: 'text',
+              text: `Error saving knowledge: ${result.message}`,
+            },
+          ],
+          isError: true,
+        };
+      }
+
+      return {
+        content: [
+          {
+            type: 'text',
+            text: result.message,
+          },
+        ],
+      };
+    } catch (error) {
+      return {
+        content: [
+          {
+            type: 'text',
+            text: `Error saving knowledge: ${(error as Error).message}`,
           },
         ],
         isError: true,

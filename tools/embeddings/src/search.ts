@@ -4,13 +4,17 @@
 
 import { SearchResult, SearchOptions } from './types.js';
 import { generateEmbedding, cosineSimilarity } from './embeddings.js';
-import { getAllChunks, databaseExists, DbChunk, touchFiles } from './db.js';
+import { getAllChunks, databaseExists, DbChunk, touchFiles, initDatabase } from './db.js';
+import { ensureIndexFresh } from './sync.js';
 
 const DEFAULT_LIMIT = 5;
 const DEFAULT_THRESHOLD = 0.3;
 
 /**
  * Search for relevant chunks using semantic similarity
+ *
+ * Automatically checks for changes in knowledge/ and reindexes if needed
+ * before performing the search (rehash automático).
  */
 export async function search(
   projectRoot: string,
@@ -24,11 +28,13 @@ export async function search(
     includeContent = true,
   } = options;
 
-  // Check if index exists
+  // Ensure index is fresh (rehash automático)
+  // This will create the database if it doesn't exist
+  await ensureIndexFresh(projectRoot);
+
+  // Check if index exists (may still be empty if no knowledge/ files)
   if (!databaseExists(projectRoot)) {
-    throw new Error(
-      'No index found. Run `memory-forge index` first to create the knowledge index.'
-    );
+    initDatabase(projectRoot);
   }
 
   // Get query embedding

@@ -352,15 +352,115 @@ export interface ParseResult {
 }
 
 /**
+ * Parse a generic markdown file in knowledge/ directory
+ * Detects if it has skill-like frontmatter or treats it as context
+ */
+export function parseKnowledgeFile(filePath: string): ParseResult {
+  const fileContent = readFileSync(filePath, 'utf-8');
+  const { data: frontmatter, content } = matter(fileContent);
+  const fm = frontmatter as SkillFrontmatter;
+
+  // If it has skill frontmatter (name + description), parse as skill
+  if (fm.name && fm.description) {
+    return {
+      chunks: parseSkillFile(filePath),
+      importance: fm.importance,
+    };
+  }
+
+  // Otherwise parse as generic knowledge file
+  const chunks: Chunk[] = [];
+  const fileName = filePath.split('/').pop() || '';
+  const knowledgeName = fileName.replace('.md', '');
+  let chunkIndex = 0;
+
+  // Extract H2 sections
+  const h2Sections = extractSections(content, 2);
+
+  for (const [heading, sectionContent] of h2Sections) {
+    if (estimateTokens(sectionContent) > MAX_CHUNK_TOKENS) {
+      // Split large sections
+      const sectionChunks = splitByTokenLimit(sectionContent, MAX_CHUNK_TOKENS);
+      for (let i = 0; i < sectionChunks.length; i++) {
+        chunks.push({
+          id: generateChunkId(filePath, 'section', chunkIndex++),
+          sourceFile: filePath,
+          sourceType: 'knowledge',
+          chunkType: 'section',
+          content: `${heading} for ${knowledgeName}:\n${sectionChunks[i]}`,
+          heading,
+          priority: 6,
+          metadata: {
+            knowledgeName,
+            sectionPath: heading,
+          },
+        });
+      }
+    } else {
+      chunks.push({
+        id: generateChunkId(filePath, 'section', chunkIndex++),
+        sourceFile: filePath,
+        sourceType: 'knowledge',
+        chunkType: 'section',
+        content: `${heading} for ${knowledgeName}:\n${sectionContent}`,
+        heading,
+        priority: 6,
+        metadata: {
+          knowledgeName,
+          sectionPath: heading,
+        },
+      });
+    }
+  }
+
+  // If no H2 sections, try H1 and create single chunk
+  if (chunks.length === 0) {
+    // Extract title from first H1
+    const h1Match = content.match(/^#\s+(.+)$/m);
+    const title = h1Match ? h1Match[1] : knowledgeName;
+
+    const fullChunks = splitByTokenLimit(content, MAX_CHUNK_TOKENS);
+    for (let i = 0; i < fullChunks.length; i++) {
+      chunks.push({
+        id: generateChunkId(filePath, 'full', chunkIndex++),
+        sourceFile: filePath,
+        sourceType: 'knowledge',
+        chunkType: 'full',
+        content: `${title}:\n${fullChunks[i]}`,
+        priority: 5,
+        metadata: {
+          knowledgeName,
+        },
+      });
+    }
+  }
+
+  return {
+    chunks,
+    importance: fm.importance,
+  };
+}
+
+/**
  * Parse any supported file into chunks
  * Returns chunks and importance (if specified in frontmatter)
  */
 export function parseFile(filePath: string): ParseResult {
   const fileName = filePath.toLowerCase();
+  const normalizedPath = filePath.replace(/\\/g, '/');
 
+  // Files in knowledge/ directory - parse as knowledge
+  if (normalizedPath.includes('knowledge/') && fileName.endsWith('.md')) {
+    return parseKnowledgeFile(filePath);
+  }
+
+  // Legacy support for SKILL.md files
   if (fileName.endsWith('skill.md')) {
     return parseSkillFileWithMeta(filePath);
-  } else if (fileName.endsWith('claude.md') || fileName.endsWith('agents.md')) {
+  }
+
+  // Legacy support for CLAUDE.md/AGENTS.md
+  if (fileName.endsWith('claude.md') || fileName.endsWith('agents.md')) {
     return { chunks: parseContextFile(filePath) };
   }
 
