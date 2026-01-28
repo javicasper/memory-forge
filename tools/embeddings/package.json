@@ -1,0 +1,49 @@
+{
+  "name": "@memory-forge/embeddings",
+  "version": "1.0.0",
+  "description": "Knowledge system with semantic search for AI coding agents",
+  "type": "module",
+  "main": "dist/mcp-server.js",
+  "bin": {
+    "@memory-forge/embeddings": "dist/mcp-server.js",
+    "memory-forge": "dist/index.js",
+    "memory-forge-mcp": "dist/mcp-server.js"
+  },
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc --watch",
+    "start": "node dist/index.js",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:coverage": "vitest run --coverage",
+    "lint": "eslint src/",
+    "prepare": "npm run build"
+  },
+  "keywords": [
+    "ai",
+    "embeddings",
+    "knowledge-base",
+    "semantic-search",
+    "claude-code",
+    "opencode"
+  ],
+  "author": "Memory Forge",
+  "license": "MIT",
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.25.3",
+    "@xenova/transformers": "^2.17.0",
+    "better-sqlite3": "^11.7.0",
+    "commander": "^12.1.0",
+    "gray-matter": "^4.0.3",
+    "zod": "^4.3.6"
+  },
+  "devDependencies": {
+    "@types/better-sqlite3": "^7.6.12",
+    "@types/node": "^22.10.0",
+    "typescript": "^5.7.0",
+    "vitest": "^3.0.0"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}

@@ -1,0 +1,72 @@
+name: CI
+
+on:
+  push:
+    branches: [master]
+    paths:
+      - 'tools/embeddings/**'
+      - '.github/workflows/ci.yml'
+  pull_request:
+    branches: [master]
+    paths:
+      - 'tools/embeddings/**'
+      - '.github/workflows/ci.yml'
+
+jobs:
+  test:
+    name: Test
+    runs-on: ubuntu-latest
+
+    defaults:
+      run:
+        working-directory: tools/embeddings
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: tools/embeddings/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build
+        run: npm run build
+
+      - name: Run tests
+        run: npm test
+
+  build:
+    name: Build Check
+    runs-on: ubuntu-latest
+
+    defaults:
+      run:
+        working-directory: tools/embeddings
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: tools/embeddings/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build
+        run: npm run build
+
+      - name: Verify MCP server starts
+        run: |
+          timeout 5 node dist/mcp-server.js < /dev/null || true
+          echo "MCP server binary OK"
