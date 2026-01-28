@@ -1,7 +1,8 @@
 #!/bin/bash
 
 # Memory Forge Installer
-# Installs the continuous learning system for Claude Code
+# Installs the continuous learning system (CLI-agnostic)
+# Supports: Claude Code, OpenCode, Codex, Cursor, GitHub Copilot
 
 set -e
 
@@ -9,7 +10,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 TARGET_DIR="${1:-.}"
 
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-echo "🔥 Memory Forge Installer"
+echo "🔥 Memory Forge Installer (CLI-Agnostic)"
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
 echo ""
 
@@ -19,19 +20,51 @@ if [ ! -d "$TARGET_DIR" ]; then
     exit 1
 fi
 
-# Create .claude directories if they don't exist
-echo "📁 Creating directories..."
+# Detect primary tool based on existing config
+detect_primary_tool() {
+    if [ -d "$TARGET_DIR/.claude" ]; then
+        echo "claude"
+    elif [ -d "$TARGET_DIR/.opencode" ]; then
+        echo "opencode"
+    elif [ -d "$TARGET_DIR/.codex" ]; then
+        echo "codex"
+    elif [ -f "$TARGET_DIR/AGENTS.md" ]; then
+        echo "agents"
+    elif [ -f "$TARGET_DIR/CLAUDE.md" ]; then
+        echo "claude"
+    else
+        echo "unknown"
+    fi
+}
+
+PRIMARY_TOOL=$(detect_primary_tool)
+echo "🔍 Detected primary tool: $PRIMARY_TOOL"
+echo ""
+
+# Create directories for Claude Code
+echo "📁 Creating Claude Code directories..."
 mkdir -p "$TARGET_DIR/.claude/skills"
 mkdir -p "$TARGET_DIR/.claude/hooks"
 
-# Copy skill files
-echo "📋 Installing memory-forge skill..."
+# Copy skill files to Claude Code location
+echo "📋 Installing memory-forge skill (Claude Code)..."
 cp -r "$SCRIPT_DIR/.claude/skills/memory-forge" "$TARGET_DIR/.claude/skills/"
 
-# Copy hook
-echo "🔗 Installing activation hook..."
+# Copy hook for Claude Code
+echo "🔗 Installing activation hook (Claude Code)..."
 cp "$SCRIPT_DIR/.claude/hooks/memory-forge-activator.sh" "$TARGET_DIR/.claude/hooks/"
 chmod +x "$TARGET_DIR/.claude/hooks/memory-forge-activator.sh"
+
+# Also install for OpenCode (it reads both locations)
+echo "📁 Creating OpenCode directories..."
+mkdir -p "$TARGET_DIR/.opencode/skill"
+cp -r "$SCRIPT_DIR/.claude/skills/memory-forge" "$TARGET_DIR/.opencode/skill/"
+
+# Copy sync script
+echo "🔄 Installing sync script..."
+mkdir -p "$TARGET_DIR/scripts"
+cp "$SCRIPT_DIR/scripts/sync-context-files.sh" "$TARGET_DIR/scripts/"
+chmod +x "$TARGET_DIR/scripts/sync-context-files.sh"
 
 # Check if settings.json exists
 SETTINGS_FILE="$TARGET_DIR/.claude/settings.json"

@@ -1,8 +1,21 @@
 # Memory Forge
 
-A continuous learning system for Claude Code that forges knowledge from work sessions into permanent memory. Works seamlessly with both single-service repositories and large monorepos.
+A **CLI-agnostic** continuous learning system that forges knowledge from work sessions into permanent memory. Works with **Claude Code, OpenCode, Codex, Cursor, GitHub Copilot**, and any tool supporting the [Agent Skills](https://www.anthropic.com/engineering/equipping-agents-for-the-real-world-with-agent-skills) standard.
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+
+## Supported Tools
+
+| Tool | Context File | Status |
+|------|--------------|--------|
+| [Claude Code](https://claude.ai/code) | CLAUDE.md | ✅ Full support |
+| [OpenCode](https://opencode.ai/) | AGENTS.md / CLAUDE.md | ✅ Full support |
+| [Codex (OpenAI)](https://openai.com/codex) | AGENTS.md | ✅ Full support |
+| [Cursor](https://cursor.sh/) | AGENTS.md | ✅ Full support |
+| [GitHub Copilot](https://github.com/features/copilot) | AGENTS.md | ✅ Full support |
+| [Gemini CLI](https://ai.google.dev/) | AGENTS.md | ✅ Full support |
+
+> **Note**: Memory Forge uses the universal [Agent Skills](https://www.anthropic.com/engineering/equipping-agents-for-the-real-world-with-agent-skills) standard (SKILL.md) which is supported by 14+ tools. For context files, it detects and updates both CLAUDE.md and AGENTS.md as needed.
 
 ## What Makes Memory Forge Different?
 
@@ -307,6 +320,51 @@ Before/after code...
 
 Caveats, related skills, limitations...
 ```
+
+## Cross-Tool Compatibility
+
+### The Context File Problem
+
+Different AI coding tools use different context files:
+
+- **CLAUDE.md**: Used by Claude Code (Anthropic)
+- **AGENTS.md**: Used by Codex, Cursor, Copilot, and [60,000+ projects](https://agents.md/)
+
+Both are now under the [Agentic AI Foundation (AAIF)](https://www.linuxfoundation.org/press/linux-foundation-announces-the-formation-of-the-agentic-ai-foundation) within the Linux Foundation.
+
+### Memory Forge Solution
+
+Memory Forge automatically detects and updates the appropriate file(s):
+
+```
+Project has only CLAUDE.md?  → Updates CLAUDE.md
+Project has only AGENTS.md?  → Updates AGENTS.md
+Project has both?            → Updates BOTH (keeps them in sync)
+Project has neither?         → Creates based on your primary tool
+```
+
+### Sync Script
+
+For teams using multiple tools, use the sync script:
+
+```bash
+# Keep CLAUDE.md and AGENTS.md in sync
+./scripts/sync-context-files.sh
+
+# Add to pre-commit hook for automatic sync
+echo './scripts/sync-context-files.sh' >> .git/hooks/pre-commit
+```
+
+### Skills Are Universal
+
+The good news: **SKILL.md files are universal**. The [Agent Skills standard](https://www.anthropic.com/engineering/equipping-agents-for-the-real-world-with-agent-skills) works across all major tools:
+
+- Claude Code: `.claude/skills/*/SKILL.md`
+- OpenCode: `.opencode/skill/*/SKILL.md` + `.claude/skills/*/SKILL.md`
+- Codex: Agent Skills standard
+- Cursor, Copilot: Agent Skills standard
+
+Memory Forge creates skills that work everywhere.
 
 ## Research Background
 
