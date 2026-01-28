@@ -1,0 +1,8 @@
+{
+  "mcpServers": {
+    "memory-forge": {
+      "command": "npx",
+      "args": ["-y", "@memory-forge/embeddings"]
+    }
+  }
+}

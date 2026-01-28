@@ -9,6 +9,7 @@ description: |
 author: Memory Forge
 version: 1.0.0
 date: YYYY-MM-DD
+importance: [1-10, where 10=critical knowledge that should never be forgotten, 5=useful but forgettable, 1=ephemeral/temporary]
 ---
 
 # [Human-Readable Title]
