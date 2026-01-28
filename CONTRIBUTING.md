@@ -1,66 +1,43 @@
 # Contributing to Memory Forge
 
-Thank you for your interest in contributing to Memory Forge! This document provides guidelines for contributing.
+Memory Forge is a **knowledge system**, not a tool. Contributions should focus on improving the knowledge and decision framework, not on building complex tooling.
 
 ## How to Contribute
 
-### Reporting Issues
+### Improving the Core Skill
 
-- Check existing issues before creating a new one
-- Use clear, descriptive titles
-- Include steps to reproduce for bugs
-- Include Claude Code version and OS
+The main skill is in `.claude/skills/memory-forge/SKILL.md`. Improvements could include:
 
-### Suggesting Features
+- Better decision heuristics for skills vs docs
+- Clearer routing logic for monorepos
+- Additional examples of knowledge extraction
+- Edge cases we haven't considered
 
-- Open an issue with the `enhancement` label
-- Describe the use case and expected behavior
-- Consider how it affects both single-repo and monorepo setups
+### Adding Examples
 
-### Pull Requests
+Examples help users understand patterns. Good examples show:
 
-1. Fork the repository
-2. Create a feature branch: `git checkout -b feat/your-feature`
-3. Make your changes
-4. Test in both single-repo and monorepo scenarios
-5. Commit with clear messages: `feat: add monorepo detection`
-6. Push and create a Pull Request
+- Monorepo structures with distributed CLAUDE.md/AGENTS.md
+- Module-specific skills that only load in context
+- Real-world knowledge extraction scenarios
 
-## Development Guidelines
+### Improving the Skill Template
 
-### Skill Development
+The template in `resources/skill-template.md` guides skill creation. Make it clearer, add better examples, or improve the structure.
 
-When modifying the main skill (`SKILL.md`):
+## What NOT to Contribute
 
-- Keep instructions clear and actionable
-- Test the decision tree with various scenarios
-- Ensure monorepo routing logic is correct
-- Update examples if behavior changes
+- Complex installers or tooling
+- CLI-specific features that fragment the project
+- Features that don't directly improve knowledge capture
 
-### Hook Development
+## Pull Request Process
 
-When modifying the activation hook:
+1. Fork and create a feature branch
+2. Make your changes
+3. Ensure the skill still reads well as documentation
+4. Submit PR with clear description of what knowledge you're adding
 
-- Keep output concise (Claude's context is limited)
-- Ensure cross-platform compatibility (bash)
-- Test with different shell configurations
+## Philosophy
 
-### Documentation
-
-- Update README.md for user-facing changes
-- Add examples for new features
-- Keep the skill template up to date
-
-## Code of Conduct
-
-- Be respectful and constructive
-- Welcome newcomers
-- Focus on the technical merits
-
-## Questions?
-
-Open an issue with the `question` label or start a discussion.
-
-## License
-
-By contributing, you agree that your contributions will be licensed under the MIT License.
+The best contribution is **better knowledge**, not more code.
