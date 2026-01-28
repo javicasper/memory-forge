@@ -38,30 +38,47 @@ While other learning systems focus solely on creating skills, Memory Forge under
 
 ## Quick Start
 
-### Installation
+### Option 1: One-Line Install (Recommended)
+
+```bash
+# From your project directory
+curl -fsSL https://raw.githubusercontent.com/javicasper/memory-forge/main/install-remote.sh | bash
+```
+
+### Option 2: Clone and Install
 
 ```bash
 # Clone the repository
-git clone https://github.com/YOUR_USERNAME/memory-forge.git
+git clone https://github.com/javicasper/memory-forge.git
 
-# Run the installer
+# Install to your project
 cd memory-forge
-./install.sh
+./install.sh /path/to/your/project
 ```
 
-Or manually copy to your project:
+### Option 3: Manual Installation
 
 ```bash
-# Copy to your project's .claude directory
-cp -r memory-forge/.claude/skills/memory-forge /path/to/your/project/.claude/skills/
-cp memory-forge/.claude/hooks/memory-forge-activator.sh /path/to/your/project/.claude/hooks/
+# 1. Copy skill files
+mkdir -p /path/to/project/.claude/skills
+cp -r memory-forge/.claude/skills/memory-forge /path/to/project/.claude/skills/
 
-# Add hook to your .claude/settings.json
+# 2. Copy hook
+mkdir -p /path/to/project/.claude/hooks
+cp memory-forge/.claude/hooks/memory-forge-activator.sh /path/to/project/.claude/hooks/
+chmod +x /path/to/project/.claude/hooks/memory-forge-activator.sh
+
+# 3. Configure hook (see below)
 ```
 
 ### Configuration
 
-Add the hook to your project's `.claude/settings.json`:
+The installer automatically creates/updates `.claude/settings.json`. If you need to configure manually:
+
+<details>
+<summary>📝 Manual settings.json configuration</summary>
+
+**If you DON'T have a settings.json yet:**
 
 ```json
 {
@@ -78,6 +95,30 @@ Add the hook to your project's `.claude/settings.json`:
     ]
   }
 }
+```
+
+**If you ALREADY have a settings.json with hooks:**
+
+Add this to your existing `UserPromptSubmit` array:
+
+```json
+{
+  "type": "command",
+  "command": ".claude/hooks/memory-forge-activator.sh"
+}
+```
+
+</details>
+
+### Verify Installation
+
+```bash
+# Check files are in place
+ls -la .claude/skills/memory-forge/
+ls -la .claude/hooks/memory-forge-activator.sh
+
+# Check hook is configured
+grep -q "memory-forge" .claude/settings.json && echo "✅ Hook configured" || echo "❌ Hook missing"
 ```
 
 ## How It Works
