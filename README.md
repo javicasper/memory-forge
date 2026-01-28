@@ -15,6 +15,26 @@ Memory Forge is **not a tool** - it's a **skill** (a set of instructions) that t
 
 ## Quick Start
 
+### Option 1: MCP Server (Recommended)
+
+Install the MCP server for semantic search across your knowledge base:
+
+```bash
+# Add to Claude Code
+claude mcp add memory-forge -- npx -y @memory-forge/embeddings
+
+# Verify installation
+claude mcp list
+```
+
+This gives you:
+- `search_knowledge` - Semantic search (finds "auth errors" when you search "login problems")
+- `save_knowledge` - Save skills and context to `knowledge/`
+- `index_knowledge` - Manually trigger reindexing
+- `audit_knowledge` - Check token usage in autoload files
+
+### Option 2: Skill Only (No MCP)
+
 Copy the skill to your project:
 
 ```bash
@@ -29,7 +49,7 @@ curl -fsSL https://raw.githubusercontent.com/javicasper/memory-forge/main/.claud
   -o .opencode/skill/memory-forge/SKILL.md
 ```
 
-That's it. The skill is now available.
+The skill teaches the agent to extract knowledge, but without MCP you won't have semantic search.
 
 ## Usage
 

@@ -1,129 +1,151 @@
 # Memory Forge Embeddings
 
-Sistema de búsqueda semántica para el conocimiento almacenado en CLAUDE.md, AGENTS.md y SKILL.md.
+Semantic search system for knowledge stored in the `knowledge/` directory.
 
-## ¿Por qué embeddings?
+## Why Embeddings?
 
-### El problema: Context Bloat
+### The Problem: Context Bloat
 
-Sin embeddings, **todo** el conocimiento se carga en cada sesión:
+Without embeddings, **all** knowledge is loaded in every session:
 
 ```
-Sesión típica SIN embeddings:
+Typical session WITHOUT embeddings:
 ┌─────────────────────────────────────────────────────────────┐
-│ CLAUDE.md completo            →  ~2,000 tokens              │
-│ 30 skills cargados            →  ~15,000 tokens             │
-│ Skills de otros módulos       →  ~8,000 tokens              │
+│ Full CLAUDE.md                →  ~2,000 tokens              │
+│ 30 loaded skills              →  ~15,000 tokens             │
+│ Skills from other modules     →  ~8,000 tokens              │
 ├─────────────────────────────────────────────────────────────┤
-│ TOTAL por sesión              →  ~25,000 tokens             │
-│ × 50 sesiones/día             →  1,250,000 tokens/día       │
+│ TOTAL per session             →  ~25,000 tokens             │
+│ × 50 sessions/day             →  1,250,000 tokens/day       │
 └─────────────────────────────────────────────────────────────┘
 ```
 
-**Problemas:**
-- 💸 Tokens desperdiciados en contexto irrelevante
-- 🐌 Respuestas más lentas por contexto grande
-- 🔍 Sin búsqueda semántica: "webhook falla" no encuentra "signature verification failed"
-- 📚 Límite práctico de ~50 skills antes de que sea inmanejable
+**Problems:**
+- 💸 Tokens wasted on irrelevant context
+- 🐌 Slower responses due to large context
+- 🔍 No semantic search: "webhook fails" doesn't find "signature verification failed"
+- 📚 Practical limit of ~50 skills before it becomes unmanageable
 
-### La solución: Búsqueda semántica on-demand
+### The Solution: On-demand Semantic Search
 
-Con embeddings, solo se carga lo **relevante**:
+With embeddings, only **relevant** content is loaded:
 
 ```
-Sesión típica CON embeddings:
+Typical session WITH embeddings:
 ┌─────────────────────────────────────────────────────────────┐
-│ Usuario: "el webhook de stripe falla"                       │
+│ User: "the stripe webhook is failing"                       │
 │                                                             │
-│ 1. Claude detecta que necesita contexto                     │
-│ 2. Llama a search_knowledge("webhook stripe falla")         │
-│ 3. Sistema encuentra chunks relevantes (~500 tokens)        │
-│ 4. Solo esos chunks se inyectan en contexto                 │
+│ 1. Claude detects need for context                          │
+│ 2. Calls search_knowledge("stripe webhook failing")         │
+│ 3. System finds relevant chunks (~500 tokens)               │
+│ 4. Only those chunks are injected into context              │
 ├─────────────────────────────────────────────────────────────┤
-│ TOTAL por sesión              →  ~500-2,000 tokens          │
-│ Reducción                     →  90-95%                     │
+│ TOTAL per session             →  ~500-2,000 tokens          │
+│ Reduction                     →  90-95%                     │
 └─────────────────────────────────────────────────────────────┘
 ```
 
-### Beneficios
+### Benefits
 
-| Métrica | Sin Embeddings | Con Embeddings | Mejora |
-|---------|----------------|----------------|--------|
-| Tokens/sesión | ~25,000 | ~2,000 | **92%** menos |
-| Búsqueda | Exacta (keywords) | Semántica | Encuentra sinónimos |
-| Skills soportados | ~50 | **Ilimitados** | Sin límite práctico |
-| Latencia | Alta (contexto grande) | Baja | Respuestas más rápidas |
+| Metric | Without Embeddings | With Embeddings | Improvement |
+|--------|-------------------|-----------------|-------------|
+| Tokens/session | ~25,000 | ~2,000 | **92%** less |
+| Search | Exact (keywords) | Semantic | Finds synonyms |
+| Supported knowledge | ~50 files | **Unlimited** | No practical limit |
+| Latency | High (large context) | Low | Faster responses |
 
-### Búsqueda semántica vs exacta
+### Semantic vs Exact Search
 
 ```
-Búsqueda EXACTA (sin embeddings):
+EXACT search (without embeddings):
   Query: "webhook validation error"
-  ❌ No encuentra: "Stripe signature verification failed"
-  ❌ No encuentra: "Invalid webhook signature"
+  ❌ Doesn't find: "Stripe signature verification failed"
+  ❌ Doesn't find: "Invalid webhook signature"
 
-Búsqueda SEMÁNTICA (con embeddings):
+SEMANTIC search (with embeddings):
   Query: "webhook validation error"
-  ✅ Encuentra: "Stripe signature verification failed" (similitud 0.85)
-  ✅ Encuentra: "Invalid webhook signature" (similitud 0.78)
-  ✅ Encuentra: "HTTP 400 on webhook endpoint" (similitud 0.72)
+  ✅ Finds: "Stripe signature verification failed" (similarity 0.85)
+  ✅ Finds: "Invalid webhook signature" (similarity 0.78)
+  ✅ Finds: "HTTP 400 on webhook endpoint" (similarity 0.72)
 ```
 
-## Arquitectura
+### Cross-Language Search
+
+The multilingual model supports searching across languages:
+
+```
+Query in Spanish: "errores de autenticación"
+  ✅ Finds English doc: "Authentication Errors - HTTP 401 means unauthorized"
+
+Query in English: "database connection errors"
+  ✅ Finds Spanish doc: "Errores de Base de Datos - conexión falla"
+```
+
+## Architecture
 
 ```
 ┌─────────────┐     ┌─────────────┐     ┌─────────────┐     ┌─────────────┐
-│ CLAUDE.md   │     │  Chunker    │     │  SQLite DB  │     │   Search    │
-│ SKILL.md    │ ──► │  (parseo    │ ──► │  (chunks +  │ ──► │  (cosine    │
-│ AGENTS.md   │     │  semántico) │     │  embeddings)│     │  similarity)│
+│ knowledge/  │     │  Chunker    │     │  SQLite DB  │     │   Search    │
+│ *.md files  │ ──► │  (semantic  │ ──► │  (chunks +  │ ──► │  (cosine    │
+│             │     │   parsing)  │     │  embeddings)│     │  similarity)│
 └─────────────┘     └─────────────┘     └─────────────┘     └─────────────┘
                            │
                            ▼
                     ┌─────────────┐
                     │Transformers │
                     │.js (local)  │
-                    │ 22MB modelo │
+                    │ 22MB model  │
                     └─────────────┘
 ```
 
-**Componentes:**
-- **Chunker**: Divide archivos en chunks semánticos (frontmatter, triggers, solution, etc.)
-- **Embeddings**: Genera vectores con Transformers.js (all-MiniLM-L6-v2, 384 dimensiones)
-- **SQLite**: Almacena chunks y embeddings localmente
-- **Search**: Búsqueda por similitud coseno con ranking por prioridad
+**What gets indexed:**
+- ✅ `knowledge/*.md` - All markdown files in knowledge/ directory
+- ❌ `CLAUDE.md` - NOT indexed (autoloaded by agent)
+- ❌ `AGENTS.md` - NOT indexed (autoloaded by agent)
+- ❌ `.claude/skills/` - NOT indexed (autoloaded by agent)
 
-**Características:**
-- 🔒 **100% local** - Sin API keys, sin enviar datos a terceros
-- 📦 **Zero dependencies externas** - Solo Node.js
-- 🧠 **Memoria con olvido** - Sistema LRU que olvida lo que no se usa
-- ⚡ **Modelo pequeño** - 22MB, se descarga una vez
+**Why this separation?** Autoload files (CLAUDE.md, skills) are already loaded in every session. Indexing them would duplicate tokens. The `knowledge/` directory is for content that should be searched on-demand.
 
-## Instalación
+**Components:**
+- **Chunker**: Splits markdown files into semantic chunks (by headings)
+- **Embeddings**: Generates vectors with Transformers.js (paraphrase-multilingual-MiniLM-L12-v2, 384 dimensions)
+- **SQLite**: Stores chunks and embeddings locally
+- **Search**: Cosine similarity search with priority ranking
 
-### Opción 1: Instalación rápida con npm (recomendada)
+**Features:**
+- 🔒 **100% local** - No API keys, no data sent to third parties
+- 📦 **Zero external dependencies** - Just Node.js
+- 🌍 **Multilingual** - Cross-language search (Spanish ↔ English)
+- 🧠 **Memory with forgetting** - LRU system forgets unused knowledge
+- ⚡ **Small model** - 22MB, downloaded once
+- 🔄 **Auto-rehash** - Index stays fresh automatically
+
+## Installation
+
+### Option 1: Quick install with npm (recommended)
 
 ```bash
-# Añadir a Claude Code (en el directorio de tu proyecto)
-claude mcp add memory-forge -- npx -y -p @memory-forge/embeddings memory-forge-mcp
+# Add to Claude Code (in your project directory)
+claude mcp add memory-forge -- npx -y @memory-forge/embeddings
 ```
 
-¡Listo! El MCP server se configura automáticamente y usa el directorio actual como raíz del proyecto.
+Done! The MCP server is configured automatically and uses the current directory as project root.
 
-### Opción 2: Instalación desde source
+### Option 2: Install from source
 
 ```bash
-# 1. Clonar e instalar
-cd /ruta/a/memory-forge/tools/embeddings
+# 1. Clone and install
+cd /path/to/memory-forge/tools/embeddings
 npm install
 npm run build
 
-# 2. Añadir a Claude Code
-claude mcp add memory-forge -- node /ruta/completa/a/memory-forge/tools/embeddings/dist/mcp-server.js
+# 2. Add to Claude Code
+claude mcp add memory-forge -- node /full/path/to/memory-forge/tools/embeddings/dist/mcp-server.js
 ```
 
-### Opción 3: Configuración manual
+### Option 3: Manual configuration
 
-Si prefieres editar la configuración manualmente, añade a `~/.claude.json`:
+If you prefer to edit the configuration manually, add to `~/.claude.json`:
 
 ```json
 {
@@ -136,234 +158,257 @@ Si prefieres editar la configuración manualmente, añade a `~/.claude.json`:
 }
 ```
 
-O para instalación local:
+Or for local installation:
 
 ```json
 {
   "mcpServers": {
     "memory-forge": {
       "command": "node",
-      "args": ["/ruta/completa/a/memory-forge/tools/embeddings/dist/mcp-server.js"]
+      "args": ["/full/path/to/memory-forge/tools/embeddings/dist/mcp-server.js"]
     }
   }
 }
 ```
 
-### Configuración por proyecto
+### Project-scoped configuration
 
-Para compartir la configuración con tu equipo, usa scope de proyecto:
+To share the configuration with your team, use project scope:
 
 ```bash
-claude mcp add --scope project memory-forge -- npx -y -p @memory-forge/embeddings memory-forge-mcp
+claude mcp add --scope project memory-forge -- npx -y @memory-forge/embeddings
 ```
 
-Esto crea `.mcp.json` en la raíz del proyecto (añádelo a git).
+This creates `.mcp.json` in the project root (add it to git).
 
-### Verificar instalación
+### Verify installation
 
 ```bash
-# Ver MCPs instalados
+# List installed MCPs
 claude mcp list
 
-# En Claude Code, deberías tener estos tools:
+# In Claude Code, you should have these tools:
 # - search_knowledge
+# - save_knowledge
 # - index_knowledge
 # - knowledge_stats
+# - audit_knowledge
 # - forget_knowledge
 ```
 
-## Uso
+## Usage
 
-### MCP Server (recomendado para Claude Code)
+### MCP Server (recommended for Claude Code)
 
-Claude usa automáticamente los tools cuando detecta que necesita contexto:
+Claude automatically uses the tools when it detects a need for context:
 
 ```
-Usuario: "El webhook de Stripe da error 400"
+User: "The Stripe webhook returns error 400"
 
-Claude: [Internamente llama a search_knowledge]
-        "Encontré un skill relevante. El problema común es que
-         el body se parsea antes de verificar la firma..."
+Claude: [Internally calls search_knowledge]
+        "Found relevant knowledge. The common problem is that
+         the body is parsed before verifying the signature..."
 ```
 
-### CLI (para otros CLIs o uso manual)
+### Available MCP Tools
+
+| Tool | Description |
+|------|-------------|
+| `search_knowledge` | Semantic search in knowledge/ |
+| `save_knowledge` | Save skills or context to knowledge/ |
+| `index_knowledge` | Manually trigger reindexing |
+| `knowledge_stats` | Show index statistics |
+| `audit_knowledge` | Check token usage in autoload files |
+| `forget_knowledge` | Remove old/unused knowledge |
+
+### CLI (for other CLIs or manual use)
 
 ```bash
-# Indexar conocimiento del proyecto
+# Index project knowledge
 memory-forge index
 
-# Buscar
+# Search
 memory-forge query "webhook signature error"
 memory-forge query "testing patterns" --limit 3 --json
 
-# Ver estadísticas de memoria
+# View memory statistics
 memory-forge memory
 
-# Olvidar memorias antiguas (no usadas en 30 días)
+# Forget old memories (unused in 30 days)
 memory-forge forget --max-age 30
 
-# Mantener máximo 100 archivos
+# Keep maximum 100 files
 memory-forge forget --max-files 100 --dry-run
 ```
 
-## Sistema de memoria con olvido
+## Memory System with Forgetting
 
-El sistema simula memoria humana: lo que no se usa se olvida.
+The system simulates human memory: unused knowledge is forgotten.
 
-### Importancia (1-10)
+### Importance (1-10)
 
-Cuando Memory Forge crea un skill, el LLM decide su importancia:
+When Memory Forge saves knowledge, it assigns an importance rating:
 
 ```yaml
 ---
 name: critical-auth-pattern
-importance: 9  # Crítico, nunca olvidar
+importance: 9  # Critical, never forget
 ---
 ```
 
-| Valor | Significado | Se borra |
-|-------|-------------|----------|
-| 9-10 | Crítico | ❌ Nunca (protegido) |
-| 6-8 | Muy importante | ❌ Nunca (protegido) |
-| 4-5 | Útil (default) | ✅ Si no se usa |
-| 1-3 | Efímero | ✅ Primero en borrarse |
+| Value | Meaning | Gets deleted |
+|-------|---------|--------------|
+| 9-10 | Critical | ❌ Never (protected) |
+| 6-8 | Very important | ❌ Never (protected) |
+| 4-5 | Useful (default) | ✅ If not used |
+| 1-3 | Ephemeral | ✅ First to be deleted |
 
-### Algoritmo de olvido
-
-```
-Al decidir qué olvidar:
-1. Archivos con importance >= 8 → NUNCA se borran
-2. Del resto, ordenar por:
-   a. Menor importancia primero
-   b. Menor access_count (uso)
-   c. Más antiguo last_accessed
-3. Borrar según política (max_age o max_files)
-```
-
-### Ejemplo
+### Forgetting Algorithm
 
 ```
-Estado de memoria:
-├── CLAUDE.md (importance: 10, accesos: 50) → PROTEGIDO
-├── auth-pattern.md (importance: 8, accesos: 30) → PROTEGIDO
-├── stripe-webhook.md (importance: 5, accesos: 10) → Candidato
-├── temp-fix.md (importance: 2, accesos: 1) → Se borra primero
-└── old-workaround.md (importance: 4, accesos: 0) → Se borra segundo
+When deciding what to forget:
+1. Files with importance >= 8 → NEVER deleted
+2. From the rest, order by:
+   a. Lowest importance first
+   b. Lowest access_count (usage)
+   c. Oldest last_accessed
+3. Delete according to policy (max_age or max_files)
+```
+
+### Example
+
+```
+Memory state:
+├── api-patterns.md (importance: 8, accesses: 30) → PROTECTED
+├── stripe-webhook.md (importance: 5, accesses: 10) → Candidate
+├── temp-fix.md (importance: 2, accesses: 1) → Deleted first
+└── old-workaround.md (importance: 4, accesses: 0) → Deleted second
 ```
 
 ## Chunking Strategy
 
-### SKILL.md → Chunks semánticos
+### knowledge/*.md → Semantic Chunks
 
-| Chunk | Prioridad | Contenido |
-|-------|-----------|-----------|
-| frontmatter | 10 | Nombre, descripción, triggers |
-| trigger | 9 | Condiciones de activación, errores |
-| problem | 8 | Descripción del problema |
-| solution | 7 | Pasos de solución |
-| verification | 5 | Cómo verificar |
-| notes | 4 | Notas adicionales |
+| Chunk | Priority | Content |
+|-------|----------|---------|
+| frontmatter | 10 | Name, description, triggers |
+| heading (H2) | 8 | Section title + content |
+| heading (H3) | 6 | Subsection title + content |
 
-### CLAUDE.md → Por secciones
+### Chunking Rules
 
-- Divide por H2 (`## Sección`)
-- Si sección > 500 tokens, subdivide por H3
-- Preserva contexto de jerarquía
+- Splits by H2 (`## Section`)
+- If section > 500 tokens, subdivides by H3
+- Preserves hierarchy context
+- Frontmatter gets highest priority for search matching
 
 ## Tests
 
 ```bash
-npm test              # Ejecutar tests
+npm test              # Run tests
 npm run test:watch    # Watch mode
-npm run test:coverage # Con coverage
+npm run test:coverage # With coverage
 ```
 
-## Estructura del proyecto
+## Project Structure
 
 ```
 tools/embeddings/
 ├── src/
 │   ├── index.ts        # CLI entry point
-│   ├── mcp-server.ts   # MCP Server para Claude Code
-│   ├── chunker.ts      # Parseo de archivos → chunks
-│   ├── embeddings.ts   # Generación con Transformers.js
-│   ├── db.ts           # SQLite + operaciones de memoria
-│   ├── search.ts       # Búsqueda semántica
-│   ├── sync.ts         # Detección de cambios
-│   └── types.ts        # Tipos TypeScript
+│   ├── mcp-server.ts   # MCP Server for Claude Code
+│   ├── chunker.ts      # File parsing → chunks
+│   ├── embeddings.ts   # Generation with Transformers.js
+│   ├── db.ts           # SQLite + memory operations
+│   ├── search.ts       # Semantic search
+│   ├── sync.ts         # Change detection + auto-rehash
+│   ├── forge.ts        # Knowledge management (save, audit)
+│   └── types.ts        # TypeScript types
 ├── tests/
 │   ├── chunker.test.ts
 │   ├── db.test.ts
 │   ├── embeddings.test.ts
-│   └── search.test.ts
+│   ├── search.test.ts
+│   ├── multilingual.test.ts  # Cross-language search tests
+│   └── rehash.test.ts        # Auto-rehash tests
 ├── package.json
 └── tsconfig.json
 ```
 
-## Release y publicación (para mantenedores)
+## Release and Publishing (for maintainers)
 
-El release es **automático** vía GitHub Actions cuando se crea un tag.
+Releases are **automatic** via GitHub Actions when a tag is created.
 
-### Crear un nuevo release
+### Create a new release
 
 ```bash
-# 1. Asegúrate de estar en main con todo commiteado
+# 1. Make sure you're on main with everything committed
 git checkout main
 git pull
 
-# 2. Crear tag de versión
+# 2. Create version tag
 git tag v1.0.0
 git push origin v1.0.0
 ```
 
-**GitHub Actions automáticamente:**
-1. ✅ Ejecuta tests
-2. ✅ Compila el proyecto
-3. ✅ Publica en npm
-4. ✅ Crea GitHub Release con changelog
+**GitHub Actions automatically:**
+1. ✅ Runs tests
+2. ✅ Builds the project
+3. ✅ Publishes to npm
+4. ✅ Creates GitHub Release with changelog
 
-### Configuración requerida (una vez)
+### Required configuration (once)
 
-1. **NPM Token**: En GitHub repo → Settings → Secrets → `NPM_TOKEN`
-   - Crear en npmjs.com → Access Tokens → Generate New Token (Automation)
+1. **NPM Token**: In GitHub repo → Settings → Secrets → `NPM_TOKEN`
+   - Create at npmjs.com → Access Tokens → Generate New Token (Automation)
 
-2. **Scope de npm**: Crear organización `@memory-forge` en npmjs.com
-   - O cambiar el nombre del paquete en `package.json`
+2. **npm scope**: Create `@memory-forge` organization on npmjs.com
+   - Or change the package name in `package.json`
 
-### Versiones
+### Versioning
 
-Seguimos [SemVer](https://semver.org/):
-- `v1.0.0` → Release estable
-- `v1.1.0` → Nueva funcionalidad (backward compatible)
+We follow [SemVer](https://semver.org/):
+- `v1.0.0` → Stable release
+- `v1.1.0` → New feature (backward compatible)
 - `v1.0.1` → Bug fix
-- `v2.0.0-beta.1` → Pre-release (no se marca como latest en npm)
+- `v2.0.0-beta.1` → Pre-release (not marked as latest on npm)
 
 ## Troubleshooting
 
 ### "No index found"
 
 ```bash
-memory-forge index  # Crear índice primero
+memory-forge index  # Create index first
 ```
 
-### MCP server no aparece en Claude Code
+Or just use `search_knowledge` - it auto-indexes on first use.
 
-1. Verifica rutas absolutas en la configuración
-2. Reinicia Claude Code completamente
-3. Revisa logs: `~/.claude/logs/`
+### MCP server doesn't appear in Claude Code
 
-### Modelo tarda en cargar
+1. Verify absolute paths in configuration
+2. Restart Claude Code completely
+3. Check logs: `~/.claude/logs/`
 
-La primera vez descarga el modelo (~22MB). Después usa caché local.
+### Model takes time to load
+
+First run downloads the model (~22MB). After that it uses local cache.
 
 ```bash
-memory-forge preload  # Pre-descargar modelo
+memory-forge preload  # Pre-download model
 ```
 
-### Error de permisos en SQLite
+### SQLite permission error
 
-El directorio `.memory-forge/` debe ser escribible:
+The `.memory-forge/` directory must be writable:
 
 ```bash
 chmod 755 .memory-forge
+```
+
+### Index seems stale
+
+The index auto-refreshes before each search. If you want to force a full reindex:
+
+```bash
+memory-forge index --force
 ```

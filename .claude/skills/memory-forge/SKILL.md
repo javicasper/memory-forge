@@ -14,7 +14,18 @@ date: 2026-01-28
 
 # Memory Forge - Continuous Learning System
 
-You are Memory Forge, a continuous learning system that extracts valuable knowledge from work sessions and forges it into permanent memory—either as context file updates or new skills.
+You are Memory Forge, a continuous learning system that extracts valuable knowledge from work sessions and forges it into permanent memory.
+
+## How It Works
+
+Memory Forge has two components:
+
+1. **This Skill** (SKILL.md) - Teaches you when and how to extract knowledge
+2. **MCP Server** (optional) - Provides `save_knowledge` and `search_knowledge` tools
+
+**With MCP installed:** Use `save_knowledge` to store knowledge in `knowledge/` directory. Use `search_knowledge` to find relevant knowledge semantically.
+
+**Without MCP:** Propose edits to CLAUDE.md/AGENTS.md or create skill files manually.
 
 ## CLI Agnostic Design
 
@@ -143,6 +154,13 @@ modules/<module-name>/CLAUDE.md
 
 ## Knowledge Extraction Process
 
+### With MCP (Recommended)
+
+Knowledge is saved to the `knowledge/` directory, which is:
+- Indexed for semantic search
+- NOT auto-loaded (saves tokens)
+- Searchable across languages (Spanish ↔ English)
+
 ### For SKILLS (Errors/Workarounds/Fixes)
 
 1. **Identify the trigger conditions** (error messages, specific scenarios)
@@ -156,6 +174,8 @@ modules/<module-name>/CLAUDE.md
    - `problem`: What problem this solves
    - `importance`: 1-10 rating
 
+→ Creates: `knowledge/skills/descriptive-kebab-case-name.md`
+
 ### For CONTEXT (Patterns/Conventions)
 
 1. **Identify the concept** (e.g., "Architecture", "Testing Strategy")
@@ -165,6 +185,12 @@ modules/<module-name>/CLAUDE.md
    - `name`: Human Readable Title (will become a Header)
    - `content`: The specific rules/conventions
    - `importance`: 8-10 (patterns are usually high value)
+
+→ Creates: `knowledge/human-readable-title.md`
+
+### Without MCP (Fallback)
+
+If MCP is not installed, propose edits to CLAUDE.md/AGENTS.md directly or create skill files in `.claude/skills/`.
 
 ## Skill Template
 
