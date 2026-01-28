@@ -143,21 +143,28 @@ modules/<module-name>/CLAUDE.md
 
 ## Knowledge Extraction Process
 
-### For SKILLS (Errors/Workarounds)
+### For SKILLS (Errors/Workarounds/Fixes)
 
-1. **Identify the trigger conditions** - What error messages, symptoms, or scenarios?
-2. **Document the solution** - Step-by-step, with code examples
-3. **Add verification steps** - How to confirm the fix worked
-4. **Include caveats** - When NOT to use this, edge cases
-5. **Create the skill file** using the template below
+1. **Identify the trigger conditions** (error messages, specific scenarios)
+2. **Formulate the solution** (step-by-step instructions)
+3. **Call `save_knowledge` tool**:
+   - `type`: "skill"
+   - `name`: descriptive-kebab-case-name
+   - `content`: The full solution details
+   - `description`: Brief summary for search
+   - `trigger`: Conditions when this applies
+   - `problem`: What problem this solves
+   - `importance`: 1-10 rating
 
-### For CLAUDE.md Updates (Patterns/Conventions)
+### For CONTEXT (Patterns/Conventions)
 
-1. **Identify the section** - Where does this knowledge belong?
-2. **Write concise instructions** - What should Claude do differently?
-3. **Include examples** - Show the pattern in action
-4. **Avoid duplication** - Check if similar knowledge already exists
-5. **Propose the edit** - Show exact changes to make
+1. **Identify the concept** (e.g., "Architecture", "Testing Strategy")
+2. **Formulate the knowledge** (what is the pattern?)
+3. **Call `save_knowledge` tool**:
+   - `type`: "context"
+   - `name`: Human Readable Title (will become a Header)
+   - `content`: The specific rules/conventions
+   - `importance`: 8-10 (patterns are usually high value)
 
 ## Skill Template
 
@@ -310,16 +317,16 @@ Before finalizing extraction, verify:
 
 ```
 EVALUATION:
-✓ Required non-trivial investigation (checked pool settings, timeouts, connection limits)
-✓ Not obvious from docs (default pool size too small for our load)
-✓ Would help others (common issue in high-traffic services)
+✓ Required non-trivial investigation
+✓ Not obvious from docs
+✓ Reusable fix
 
-DECISION: Create a SKILL
-- Has specific trigger: "connection timeout after 30s"
-- Has clear solution: Increase pool size, add connection management
-- Is reusable across projects
-
-CREATING: .claude/skills/mongodb-connection-pool-exhaustion/SKILL.md
+ACTION: Calling save_knowledge
+- type: "skill"
+- name: "mongodb-pool-exhaustion"
+- trigger: "Connection timeout after 30s"
+- problem: "Default pool size too small for load"
+- content: "Increase pool size to 50..."
 ```
 
 ## Integration with Hooks

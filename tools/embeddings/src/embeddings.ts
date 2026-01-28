@@ -1,13 +1,15 @@
 /**
  * Embeddings module - Generate embeddings using Transformers.js
  *
- * Uses all-MiniLM-L6-v2 model (22MB) for local embedding generation
+ * Uses paraphrase-multilingual-MiniLM-L12-v2 for multilingual support
+ * Supports cross-language semantic search (Spanish, English, etc.)
  * No API keys required, fully offline capable
  */
 
 import { pipeline, FeatureExtractionPipeline } from '@xenova/transformers';
 
-const MODEL_NAME = 'Xenova/all-MiniLM-L6-v2';
+// Multilingual model for mixed language corpus
+const MODEL_NAME = 'Xenova/paraphrase-multilingual-MiniLM-L12-v2';
 const EMBEDDING_DIMENSION = 384;
 
 let embeddingPipeline: FeatureExtractionPipeline | null = null;
@@ -128,4 +130,11 @@ export function getEmbeddingDimension(): number {
  */
 export async function preloadModel(): Promise<void> {
   await initPipeline();
+}
+
+/**
+ * Get the current model ID (for tracking in index metadata)
+ */
+export function getModelId(): string {
+  return MODEL_NAME;
 }

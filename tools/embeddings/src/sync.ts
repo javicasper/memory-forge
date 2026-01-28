@@ -10,8 +10,16 @@ import { readdirSync, existsSync, readFileSync, writeFileSync } from 'fs';
 import { join, relative } from 'path';
 import { SyncResult } from './types.js';
 import { calculateFileHash, parseFile } from './chunker.js';
-import { generateEmbeddings } from './embeddings.js';
-import { upsertFileChunks, removeFile, getAllFileIndexes, initDatabase } from './db.js';
+import { generateEmbeddings, getModelId } from './embeddings.js';
+import {
+  upsertFileChunks,
+  removeFile,
+  getAllFileIndexes,
+  initDatabase,
+  getIndexMetadata,
+  setEmbeddingModel,
+  clearDatabase,
+} from './db.js';
 import { isIndexable, computeHash } from './forge.js';
 
 // ============================================================================
@@ -96,6 +104,45 @@ export function discoverFiles(projectRoot: string): string[] {
     const relativePath = relative(projectRoot, file);
     return isIndexable(relativePath);
   });
+}
+
+// ============================================================================
+// MODEL CHANGE DETECTION
+// ============================================================================
+
+/**
+ * Check if the embedding model has changed since last index
+ * If model changed, clear database and manifest to force full reindex
+ *
+ * Returns true if model changed and index was cleared
+ */
+export function checkModelConsistency(projectRoot: string): boolean {
+  const metadata = getIndexMetadata(projectRoot);
+  const currentModel = getModelId();
+
+  // No previous metadata = fresh index, no clearing needed
+  if (!metadata || !metadata.embeddingModel) {
+    return false;
+  }
+
+  // Model matches = no clearing needed
+  if (metadata.embeddingModel === currentModel) {
+    return false;
+  }
+
+  // Model mismatch - clear everything for full reindex
+  console.log(`Model changed: ${metadata.embeddingModel} → ${currentModel}`);
+  console.log('Clearing index for full reindex...');
+
+  clearDatabase(projectRoot);
+
+  // Also clear manifest
+  const manifestPath = getManifestPath(projectRoot);
+  if (existsSync(manifestPath)) {
+    writeFileSync(manifestPath, JSON.stringify({ files: {}, lastIndexed: '' }, null, 2), 'utf-8');
+  }
+
+  return true;
 }
 
 // ============================================================================
@@ -200,14 +247,17 @@ export async function ensureIndexFresh(projectRoot: string): Promise<boolean> {
   // Initialize database if needed
   initDatabase(projectRoot);
 
+  // Check if model changed - if so, force full reindex
+  const modelChanged = checkModelConsistency(projectRoot);
+
   // Discover current files
   const files = discoverFiles(projectRoot);
 
   // Get files that need indexing
   const { toIndex, toRemove } = getFilesToIndex(projectRoot, files);
 
-  // If nothing changed, return early
-  if (toIndex.length === 0 && toRemove.length === 0) {
+  // If nothing changed and model didn't change, return early
+  if (toIndex.length === 0 && toRemove.length === 0 && !modelChanged) {
     return false;
   }
 
@@ -229,9 +279,10 @@ export async function ensureIndexFresh(projectRoot: string): Promise<boolean> {
     manifest.files[file] = computeHash(content);
   }
 
-  // Save updated manifest
+  // Save updated manifest and record model
   manifest.lastIndexed = new Date().toISOString();
   saveManifest(projectRoot, manifest);
+  setEmbeddingModel(projectRoot, getModelId());
 
   return true;
 }
@@ -243,6 +294,9 @@ export async function ensureIndexFresh(projectRoot: string): Promise<boolean> {
 export async function syncProject(projectRoot: string): Promise<SyncResult> {
   // Initialize database
   initDatabase(projectRoot);
+
+  // Check if model changed - if so, force full reindex
+  checkModelConsistency(projectRoot);
 
   // Discover files in knowledge/ only
   const files = discoverFiles(projectRoot);
@@ -292,9 +346,10 @@ export async function syncProject(projectRoot: string): Promise<SyncResult> {
     console.log(`  → ${chunkCount} chunk(s)`);
   }
 
-  // Save updated manifest
+  // Save updated manifest and record model
   manifest.lastIndexed = new Date().toISOString();
   saveManifest(projectRoot, manifest);
+  setEmbeddingModel(projectRoot, getModelId());
 
   return result;
 }

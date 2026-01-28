@@ -82,6 +82,12 @@ export function initDatabase(projectRoot: string): Database.Database {
     CREATE INDEX IF NOT EXISTS idx_chunks_source_type ON chunks(source_type);
     CREATE INDEX IF NOT EXISTS idx_chunks_priority ON chunks(priority DESC);
     CREATE INDEX IF NOT EXISTS idx_files_last_accessed ON files(last_accessed);
+
+    -- Index metadata (embedding model, etc.)
+    CREATE TABLE IF NOT EXISTS index_metadata (
+      key TEXT PRIMARY KEY,
+      value TEXT NOT NULL
+    );
   `);
 
   // Migration: add columns if they don't exist (for existing databases)
@@ -323,7 +329,69 @@ export function clearDatabase(projectRoot: string): void {
   database.exec(`
     DELETE FROM chunks;
     DELETE FROM files;
+    DELETE FROM index_metadata;
   `);
+}
+
+/**
+ * Index metadata structure
+ */
+export interface IndexMetadata {
+  embeddingModel: string | null;
+  lastIndexed: string | null;
+}
+
+/**
+ * Get index metadata (embedding model, etc.)
+ */
+export function getIndexMetadata(projectRoot: string): IndexMetadata | null {
+  if (!databaseExists(projectRoot)) {
+    return null;
+  }
+
+  const database = initDatabase(projectRoot);
+
+  const embeddingModel = database
+    .prepare("SELECT value FROM index_metadata WHERE key = 'embedding_model'")
+    .get() as { value: string } | undefined;
+
+  const lastIndexed = database
+    .prepare("SELECT value FROM index_metadata WHERE key = 'last_indexed'")
+    .get() as { value: string } | undefined;
+
+  if (!embeddingModel && !lastIndexed) {
+    return null;
+  }
+
+  return {
+    embeddingModel: embeddingModel?.value ?? null,
+    lastIndexed: lastIndexed?.value ?? null,
+  };
+}
+
+/**
+ * Set index metadata value
+ */
+export function setIndexMetadata(
+  projectRoot: string,
+  key: string,
+  value: string
+): void {
+  const database = initDatabase(projectRoot);
+
+  database
+    .prepare(
+      `INSERT OR REPLACE INTO index_metadata (key, value) VALUES (?, ?)`
+    )
+    .run(key, value);
+}
+
+/**
+ * Set embedding model in metadata
+ */
+export function setEmbeddingModel(projectRoot: string, modelId: string): void {
+  setIndexMetadata(projectRoot, 'embedding_model', modelId);
+  setIndexMetadata(projectRoot, 'last_indexed', new Date().toISOString());
 }
 
 /**
