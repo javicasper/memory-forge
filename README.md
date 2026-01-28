@@ -71,44 +71,16 @@ chmod +x /path/to/project/.claude/hooks/memory-forge-activator.sh
 # 3. Configure hook (see below)
 ```
 
-### Configuration
+### That's It!
 
-The installer automatically creates/updates `.claude/settings.json`. If you need to configure manually:
+The installer **automatically configures everything**:
 
-<details>
-<summary>📝 Manual settings.json configuration</summary>
+- ✅ Creates skill files in `.claude/skills/` and `.opencode/skill/`
+- ✅ Creates activation hook in `.claude/hooks/`
+- ✅ **Auto-merges hook into existing `settings.json`** (uses jq, node, or python)
+- ✅ Handles all edge cases (no file, empty hooks, existing hooks)
 
-**If you DON'T have a settings.json yet:**
-
-```json
-{
-  "hooks": {
-    "UserPromptSubmit": [
-      {
-        "hooks": [
-          {
-            "type": "command",
-            "command": ".claude/hooks/memory-forge-activator.sh"
-          }
-        ]
-      }
-    ]
-  }
-}
-```
-
-**If you ALREADY have a settings.json with hooks:**
-
-Add this to your existing `UserPromptSubmit` array:
-
-```json
-{
-  "type": "command",
-  "command": ".claude/hooks/memory-forge-activator.sh"
-}
-```
-
-</details>
+No manual JSON editing required.
 
 ### Verify Installation
 

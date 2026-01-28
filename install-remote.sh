@@ -7,6 +7,7 @@ set -e
 
 REPO_URL="https://github.com/javicasper/memory-forge"
 BRANCH="main"
+HOOK_CMD=".claude/hooks/memory-forge-activator.sh"
 
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
 echo "🔥 Memory Forge Remote Installer"
@@ -47,59 +48,127 @@ cp "$TEMP_DIR/scripts/sync-context-files.sh" scripts/
 chmod +x .claude/hooks/memory-forge-activator.sh
 chmod +x scripts/sync-context-files.sh
 
-# Configure settings.json
-SETTINGS_FILE=".claude/settings.json"
-
-if [ -f "$SETTINGS_FILE" ]; then
-    if grep -q "memory-forge-activator" "$SETTINGS_FILE" 2>/dev/null; then
-        echo "✅ Hook already configured"
-    elif grep -q '"hooks"' "$SETTINGS_FILE" 2>/dev/null; then
-        echo ""
-        echo "⚠️  Found existing hooks in settings.json"
-        echo "   Add this to your UserPromptSubmit hooks:"
-        echo ""
-        echo '   { "type": "command", "command": ".claude/hooks/memory-forge-activator.sh" }'
-        echo ""
-    else
-        echo "📝 Adding hooks to settings.json..."
-        if command -v node &> /dev/null; then
-            node -e "
-            const fs = require('fs');
-            const settings = JSON.parse(fs.readFileSync('$SETTINGS_FILE', 'utf8'));
-            settings.hooks = settings.hooks || {};
-            settings.hooks.UserPromptSubmit = [{
-                hooks: [{ type: 'command', command: '.claude/hooks/memory-forge-activator.sh' }]
-            }];
-            fs.writeFileSync('$SETTINGS_FILE', JSON.stringify(settings, null, 2));
-            " && echo "✅ Hook added"
-        else
-            echo "⚠️  Add hook manually (Node.js not available for auto-config)"
-        fi
-    fi
-else
-    echo "📝 Creating settings.json..."
-    cat > "$SETTINGS_FILE" << 'EOF'
-{
-  "hooks": {
-    "UserPromptSubmit": [
-      {
-        "hooks": [
-          {
-            "type": "command",
-            "command": ".claude/hooks/memory-forge-activator.sh"
-          }
-        ]
-      }
-    ]
-  }
-}
-EOF
-    echo "✅ Created settings.json"
-fi
-
 # Also create for OpenCode
 mkdir -p .opencode/skill
 cp -r .claude/skills/memory-forge .opencode/skill/
+
+echo "✅ Files installed"
+
+# ============================================================
+# AUTO-CONFIGURE HOOKS (the smart part)
+# ============================================================
+
+SETTINGS_FILE=".claude/settings.json"
+HOOK_ENTRY='{"type":"command","command":"'"$HOOK_CMD"'"}'
+
+configure_hook_jq() {
+    # Using jq for JSON manipulation
+    local temp_file=$(mktemp)
+
+    if [ ! -f "$SETTINGS_FILE" ]; then
+        # No settings.json - create from scratch
+        echo '{"hooks":{"UserPromptSubmit":[{"hooks":['"$HOOK_ENTRY"']}]}}' | jq '.' > "$SETTINGS_FILE"
+        return 0
+    fi
+
+    # Check if hook already exists
+    if jq -e '.hooks.UserPromptSubmit[]?.hooks[]? | select(.command == "'"$HOOK_CMD"'")' "$SETTINGS_FILE" > /dev/null 2>&1; then
+        echo "✅ Hook already configured"
+        return 0
+    fi
+
+    # Add hook to existing settings
+    jq '
+      .hooks //= {} |
+      .hooks.UserPromptSubmit //= [] |
+      .hooks.UserPromptSubmit += [{"hooks": ['"$HOOK_ENTRY"']}]
+    ' "$SETTINGS_FILE" > "$temp_file" && mv "$temp_file" "$SETTINGS_FILE"
+
+    return 0
+}
+
+configure_hook_node() {
+    # Using Node.js for JSON manipulation
+    node << 'NODEJS_SCRIPT'
+const fs = require('fs');
+const settingsFile = '.claude/settings.json';
+const hookCmd = '.claude/hooks/memory-forge-activator.sh';
+
+let settings = {};
+if (fs.existsSync(settingsFile)) {
+    settings = JSON.parse(fs.readFileSync(settingsFile, 'utf8'));
+}
+
+// Initialize hooks structure
+settings.hooks = settings.hooks || {};
+settings.hooks.UserPromptSubmit = settings.hooks.UserPromptSubmit || [];
+
+// Check if hook already exists
+const hookExists = settings.hooks.UserPromptSubmit.some(entry =>
+    entry.hooks?.some(h => h.command === hookCmd)
+);
+
+if (!hookExists) {
+    settings.hooks.UserPromptSubmit.push({
+        hooks: [{ type: 'command', command: hookCmd }]
+    });
+}
+
+fs.writeFileSync(settingsFile, JSON.stringify(settings, null, 2));
+NODEJS_SCRIPT
+}
+
+configure_hook_python() {
+    # Using Python for JSON manipulation
+    python3 << 'PYTHON_SCRIPT'
+import json
+import os
+
+settings_file = '.claude/settings.json'
+hook_cmd = '.claude/hooks/memory-forge-activator.sh'
+
+settings = {}
+if os.path.exists(settings_file):
+    with open(settings_file, 'r') as f:
+        settings = json.load(f)
+
+# Initialize hooks structure
+settings.setdefault('hooks', {})
+settings['hooks'].setdefault('UserPromptSubmit', [])
+
+# Check if hook already exists
+hook_exists = any(
+    h.get('command') == hook_cmd
+    for entry in settings['hooks']['UserPromptSubmit']
+    for h in entry.get('hooks', [])
+)
+
+if not hook_exists:
+    settings['hooks']['UserPromptSubmit'].append({
+        'hooks': [{'type': 'command', 'command': hook_cmd}]
+    })
+
+with open(settings_file, 'w') as f:
+    json.dump(settings, f, indent=2)
+PYTHON_SCRIPT
+}
+
+echo "🔧 Configuring hook..."
+
+# Try jq first (most reliable for JSON), then node, then python
+if command -v jq &> /dev/null; then
+    configure_hook_jq && echo "✅ Hook configured (via jq)"
+elif command -v node &> /dev/null; then
+    configure_hook_node && echo "✅ Hook configured (via node)"
+elif command -v python3 &> /dev/null; then
+    configure_hook_python && echo "✅ Hook configured (via python)"
+else
+    echo "⚠️  No JSON tool available (jq, node, or python3)"
+    echo "   Install one of them or add hook manually to .claude/settings.json:"
+    echo ""
+    echo '   "hooks": { "UserPromptSubmit": [{ "hooks": [{ "type": "command", "command": ".claude/hooks/memory-forge-activator.sh" }] }] }'
+    echo ""
+fi
 
 echo ""
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
