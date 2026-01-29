@@ -55,6 +55,21 @@ This adds:
 
 **Why optional?** The skill works standalone. The MCP adds ~98% token reduction for projects with large knowledge bases by indexing `knowledge/` separately from autoload files.
 
+### Skill vs MCP
+
+These are **separate installations**. Installing one does not install the other.
+
+| Component | What it does | Installed via |
+|-----------|--------------|---------------|
+| **Skill** | Teaches the agent *when* and *how* to extract knowledge | `curl ... SKILL.md` |
+| **MCP** | Provides tools (`save_knowledge`, `search_knowledge`, `audit_knowledge`) | `claude mcp add ...` |
+
+**What happens in each scenario:**
+
+- **Only Skill** → Agent knows how to extract knowledge, saves to traditional autoload files (CLAUDE.md, `.claude/skills/`)
+- **Only MCP** → Tools are available, but agent lacks guidance on when to use them
+- **Skill + MCP** → Full experience (recommended). Agent knows when to extract, tools handle where to save and how to search.
+
 ## Usage
 
 After completing a task that required investigation or discovery:
