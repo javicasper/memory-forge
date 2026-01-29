@@ -28,12 +28,12 @@ The skill is the foundation. Copy it to your project:
 ```bash
 # For Claude Code
 mkdir -p .claude/skills/memory-forge
-curl -fsSL https://raw.githubusercontent.com/javicasper/memory-forge/main/.claude/skills/memory-forge/SKILL.md \
+curl -fsSL https://raw.githubusercontent.com/javicasper/memory-forge/main/SKILL.md \
   -o .claude/skills/memory-forge/SKILL.md
 
 # For OpenCode / Codex / Others
 mkdir -p .opencode/skill/memory-forge
-curl -fsSL https://raw.githubusercontent.com/javicasper/memory-forge/main/.claude/skills/memory-forge/SKILL.md \
+curl -fsSL https://raw.githubusercontent.com/javicasper/memory-forge/main/SKILL.md \
   -o .opencode/skill/memory-forge/SKILL.md
 ```
 

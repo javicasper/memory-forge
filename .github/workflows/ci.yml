@@ -5,11 +5,13 @@ on:
     branches: [master]
     paths:
       - 'tools/embeddings/**'
+      - 'SKILL.md'
       - '.github/workflows/ci.yml'
   pull_request:
     branches: [master]
     paths:
       - 'tools/embeddings/**'
+      - 'SKILL.md'
       - '.github/workflows/ci.yml'
 
 jobs:

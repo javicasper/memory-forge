@@ -13,12 +13,11 @@ Memory Forge is a **knowledge system**, not a tool. It's a skill (set of instruc
 ## Repository Structure
 
 ```
+SKILL.md                      # The main skill (canonical location)
 .claude/skills/memory-forge/
-├── SKILL.md                 # The main skill - core decision framework
-└── resources/
-    └── skill-template.md    # Template for creating new skills
-
-.opencode/skill/memory-forge/ # Mirror for OpenCode compatibility
+└── SKILL.md → ../../../SKILL.md  # Symlink for Claude Code
+.opencode/skill/memory-forge/
+└── SKILL.md → ../../../SKILL.md  # Symlink for OpenCode
 
 examples/
 ├── monorepo/                # Example monorepo with distributed CLAUDE.md files
@@ -27,8 +26,9 @@ examples/
 
 ## Key Files
 
-- **`.claude/skills/memory-forge/SKILL.md`**: The core skill containing the decision framework, activation triggers, and knowledge extraction process
-- **`.opencode/skill/memory-forge/SKILL.md`**: Identical copy for OpenCode compatibility (keep in sync)
+- **`SKILL.md`**: The core skill containing the decision framework, activation triggers, and knowledge extraction process (canonical location at project root)
+- **`.claude/skills/memory-forge/SKILL.md`**: Symlink for Claude Code compatibility
+- **`.opencode/skill/memory-forge/SKILL.md`**: Symlink for OpenCode compatibility
 
 ## Development Guidelines
 
@@ -51,4 +51,4 @@ Memory Forge supports multiple AI coding tools through the Agent Skills standard
 | Codex | AGENTS.md | .codex/skills/ |
 | Cursor, Copilot | AGENTS.md | Agent Skills standard |
 
-When updating the skill, update both `.claude/skills/` and `.opencode/skill/` to maintain sync.
+The skill symlinks point to the canonical `SKILL.md` at the project root, so updates only need to be made in one place.
