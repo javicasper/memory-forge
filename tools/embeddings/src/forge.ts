@@ -63,11 +63,15 @@ export const THRESHOLDS = {
 
 /**
  * Check if a file path should be indexed (only knowledge/ directory)
+ *
+ * IMPORTANT: Skills (.claude/skills/, .opencode/skill/) are NEVER indexed.
+ * They live in autoload and are loaded automatically by the agent.
+ * Only knowledge/ contains indexed, searchable content.
  */
 export function isIndexable(filePath: string): boolean {
   const normalized = filePath.replace(/\\/g, '/');
 
-  // Must be in knowledge/ directory
+  // Must be in knowledge/ directory (skills are excluded by this rule)
   if (!normalized.includes('knowledge/')) return false;
 
   // Must be a markdown file
@@ -382,45 +386,24 @@ _Added: ${date}_
 }
 
 /**
- * Save knowledge to the knowledge/ directory (source of truth)
+ * Save knowledge based on type:
+ * - type=skill → .claude/skills/<name>/SKILL.md and .opencode/skill/<name>/SKILL.md (autoload, NOT indexed)
+ * - type=context → knowledge/<name>.md (indexed)
  */
 export async function saveKnowledge(
   projectRoot: string,
   input: KnowledgeInput
 ): Promise<{ success: boolean; path: string; message: string }> {
   try {
-    const knowledgeDir = join(projectRoot, 'knowledge');
-
-    // Ensure knowledge directory exists
-    if (!existsSync(knowledgeDir)) {
-      mkdirSync(knowledgeDir, { recursive: true });
-    }
-
-    // Determine file name
     const fileName = input.name.toLowerCase().replace(/[^a-z0-9-]/g, '-').replace(/-+/g, '-');
-    const filePath = join(knowledgeDir, `${fileName}.md`);
 
-    // Check if file already exists
-    if (existsSync(filePath)) {
-      return {
-        success: false,
-        path: filePath,
-        message: `Knowledge file already exists at ${filePath}. Use a different name or update manually.`,
-      };
+    if (input.type === 'skill') {
+      // Skills go to autoload directories, NOT knowledge/
+      return saveSkillToAutoload(projectRoot, fileName, input);
+    } else {
+      // Context goes to knowledge/ (indexed)
+      return saveContextToKnowledge(projectRoot, fileName, input);
     }
-
-    // Format and write content
-    const content = formatKnowledgeContent(input);
-    writeFileSync(filePath, content, 'utf-8');
-
-    // Index immediately
-    await syncProject(projectRoot);
-
-    return {
-      success: true,
-      path: filePath,
-      message: `Knowledge saved to ${filePath} and indexed.`,
-    };
   } catch (error) {
     return {
       success: false,
@@ -428,4 +411,84 @@ export async function saveKnowledge(
       message: `Error saving knowledge: ${(error as Error).message}`,
     };
   }
+}
+
+/**
+ * Save a skill to autoload directories (.claude/skills/ and .opencode/skill/)
+ * Skills are NOT indexed - they are loaded automatically by the agent.
+ */
+async function saveSkillToAutoload(
+  projectRoot: string,
+  fileName: string,
+  input: KnowledgeInput
+): Promise<{ success: boolean; path: string; message: string }> {
+  const claudeSkillDir = join(projectRoot, '.claude', 'skills', fileName);
+  const opencodeSkillDir = join(projectRoot, '.opencode', 'skill', fileName);
+
+  const claudeSkillPath = join(claudeSkillDir, 'SKILL.md');
+  const opencodeSkillPath = join(opencodeSkillDir, 'SKILL.md');
+
+  // Check if skill already exists in either location
+  if (existsSync(claudeSkillPath) || existsSync(opencodeSkillPath)) {
+    return {
+      success: false,
+      path: claudeSkillPath,
+      message: `Skill already exists at ${claudeSkillPath} or ${opencodeSkillPath}. Use a different name or update manually.`,
+    };
+  }
+
+  // Create directories
+  mkdirSync(claudeSkillDir, { recursive: true });
+  mkdirSync(opencodeSkillDir, { recursive: true });
+
+  // Format and write content to both locations
+  const content = formatKnowledgeContent(input);
+  writeFileSync(claudeSkillPath, content, 'utf-8');
+  writeFileSync(opencodeSkillPath, content, 'utf-8');
+
+  return {
+    success: true,
+    path: claudeSkillPath,
+    message: `Skill saved to ${claudeSkillPath} and ${opencodeSkillPath} (autoload, not indexed).`,
+  };
+}
+
+/**
+ * Save context knowledge to knowledge/ directory (indexed)
+ */
+async function saveContextToKnowledge(
+  projectRoot: string,
+  fileName: string,
+  input: KnowledgeInput
+): Promise<{ success: boolean; path: string; message: string }> {
+  const knowledgeDir = join(projectRoot, 'knowledge');
+
+  // Ensure knowledge directory exists
+  if (!existsSync(knowledgeDir)) {
+    mkdirSync(knowledgeDir, { recursive: true });
+  }
+
+  const filePath = join(knowledgeDir, `${fileName}.md`);
+
+  // Check if file already exists
+  if (existsSync(filePath)) {
+    return {
+      success: false,
+      path: filePath,
+      message: `Knowledge file already exists at ${filePath}. Use a different name or update manually.`,
+    };
+  }
+
+  // Format and write content
+  const content = formatKnowledgeContent(input);
+  writeFileSync(filePath, content, 'utf-8');
+
+  // Index immediately
+  await syncProject(projectRoot);
+
+  return {
+    success: true,
+    path: filePath,
+    message: `Knowledge saved to ${filePath} and indexed.`,
+  };
 }

@@ -49,7 +49,7 @@ claude mcp add memory-forge -- npx -y @memory-forge/embeddings
 
 This adds:
 - `search_knowledge` - Semantic search (finds "auth errors" when you search "login problems")
-- `save_knowledge` - Save skills and context to `knowledge/`
+- `save_knowledge` - Save knowledge (skills → autoload, context → `knowledge/`)
 - `index_knowledge` - Manually trigger reindexing
 - `audit_knowledge` - Check token usage in autoload files
 
@@ -244,6 +244,12 @@ Memory Forge builds on ideas from:
 - Keep autoload files **small** (stubs, pointers)
 - Put detailed knowledge in `knowledge/`
 - Search semantically when needed
+
+**What goes where:**
+- `save_knowledge(type=skill)` → `.claude/skills/` and `.opencode/skill/` (autoload, never indexed)
+- `save_knowledge(type=context)` → `knowledge/` (indexed, searchable)
+
+Skills are procedures the agent needs *before* acting. They must be in autoload, not searched on-demand.
 
 The MCP's `audit_knowledge` tool helps monitor autoload bloat.
 

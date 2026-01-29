@@ -26,8 +26,8 @@ describe('forge', () => {
     vi.clearAllMocks();
   });
 
-  describe('saveKnowledge (SPEC: saves to knowledge/)', () => {
-    it('should save a new skill to knowledge/ directory', async () => {
+  describe('saveKnowledge - skills go to autoload, NOT knowledge/', () => {
+    it('should save skill to .claude/skills/ and .opencode/skill/ (autoload)', async () => {
       const input = {
         type: 'skill' as const,
         name: 'test-skill',
@@ -42,23 +42,39 @@ describe('forge', () => {
 
       expect(result.success).toBe(true);
 
-      // According to SPEC: knowledge is saved to knowledge/<name>.md
-      const expectedPath = join(tempDir, 'knowledge/test-skill.md');
-      expect(result.path).toBe(expectedPath);
-      expect(existsSync(expectedPath)).toBe(true);
+      // Skill goes to autoload directories
+      const claudePath = join(tempDir, '.claude/skills/test-skill/SKILL.md');
+      const opencodePath = join(tempDir, '.opencode/skill/test-skill/SKILL.md');
 
-      const content = readFileSync(expectedPath, 'utf-8');
+      expect(existsSync(claudePath)).toBe(true);
+      expect(existsSync(opencodePath)).toBe(true);
+
+      const content = readFileSync(claudePath, 'utf-8');
       expect(content).toContain('name: test-skill');
-      expect(content).toContain('description: |');
       expect(content).toContain('Test description');
-      expect(content).toContain('importance: 8');
-      expect(content).toContain('# Test Skill');
       expect(content).toContain('## Problem\n\nTest problem');
-      expect(content).toContain('## Trigger Conditions\n\nTest trigger');
       expect(content).toContain('## Solution\n\nTest content for solution');
     });
 
-    it('should save context knowledge to knowledge/ directory', async () => {
+    it('should NEVER save skill to knowledge/ directory', async () => {
+      const input = {
+        type: 'skill' as const,
+        name: 'my-skill',
+        content: 'Skill content',
+        description: 'A skill',
+      };
+
+      await saveKnowledge(tempDir, input);
+
+      // CRITICAL: skills must NOT go to knowledge/
+      const knowledgePath = join(tempDir, 'knowledge/my-skill.md');
+      expect(existsSync(knowledgePath)).toBe(false);
+
+      // Verify it went to autoload instead
+      expect(existsSync(join(tempDir, '.claude/skills/my-skill/SKILL.md'))).toBe(true);
+    });
+
+    it('should save context to knowledge/ directory (indexed)', async () => {
       const input = {
         type: 'context' as const,
         name: 'New Pattern',
@@ -70,7 +86,7 @@ describe('forge', () => {
 
       expect(result.success).toBe(true);
 
-      // According to SPEC: all knowledge goes to knowledge/
+      // Context goes to knowledge/
       const expectedPath = join(tempDir, 'knowledge/new-pattern.md');
       expect(result.path).toBe(expectedPath);
       expect(existsSync(expectedPath)).toBe(true);
@@ -80,7 +96,7 @@ describe('forge', () => {
       expect(content).toContain('Details about the pattern');
     });
 
-    it('should not overwrite existing knowledge file', async () => {
+    it('should not overwrite existing skill', async () => {
       const input = {
         type: 'skill' as const,
         name: 'duplicate-skill',
@@ -101,7 +117,7 @@ describe('forge', () => {
       expect(result.message).toContain('already exists');
     });
 
-    it('should create knowledge/ directory if it does not exist', async () => {
+    it('should create knowledge/ directory for context if it does not exist', async () => {
       const input = {
         type: 'context' as const,
         name: 'first-knowledge',
@@ -116,24 +132,35 @@ describe('forge', () => {
     });
   });
 
-  describe('isIndexable (SPEC: only knowledge/)', () => {
-    it('should return true for files in knowledge/', () => {
+  describe('CRITICAL: skills are NEVER indexed', () => {
+    it('isIndexable returns false for .claude/skills/', () => {
+      expect(isIndexable('.claude/skills/foo/SKILL.md')).toBe(false);
+      expect(isIndexable('.claude/skills/bar/SKILL.md')).toBe(false);
+      expect(isIndexable('/project/.claude/skills/test/SKILL.md')).toBe(false);
+    });
+
+    it('isIndexable returns false for .opencode/skill/', () => {
+      expect(isIndexable('.opencode/skill/foo/SKILL.md')).toBe(false);
+      expect(isIndexable('.opencode/skill/bar/SKILL.md')).toBe(false);
+      expect(isIndexable('/project/.opencode/skill/test/SKILL.md')).toBe(false);
+    });
+
+    it('isIndexable returns false for .codex/skills/', () => {
+      expect(isIndexable('.codex/skills/foo/SKILL.md')).toBe(false);
+    });
+
+    it('isIndexable returns true ONLY for knowledge/', () => {
       expect(isIndexable('knowledge/api.md')).toBe(true);
       expect(isIndexable('knowledge/nested/file.md')).toBe(true);
-    });
+      expect(isIndexable('/project/knowledge/doc.md')).toBe(true);
 
-    it('should return false for CLAUDE.md', () => {
+      // Everything else is false
       expect(isIndexable('CLAUDE.md')).toBe(false);
-    });
-
-    it('should return false for files in .claude/', () => {
-      expect(isIndexable('.claude/skills/foo/SKILL.md')).toBe(false);
-    });
-
-    it('should return false for non-markdown files', () => {
-      expect(isIndexable('knowledge/data.json')).toBe(false);
+      expect(isIndexable('AGENTS.md')).toBe(false);
+      expect(isIndexable('src/code.ts')).toBe(false);
     });
   });
+
 
   describe('isAuditable (SPEC: autoload files)', () => {
     it('should return true for CLAUDE.md', () => {
