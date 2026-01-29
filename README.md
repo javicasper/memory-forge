@@ -1,7 +1,9 @@
 # Memory Forge
 
-> **Teach AI agents to learn from their work and forge knowledge into permanent memory.**
-> Works with Claude Code, OpenCode, Codex, Cursor, and any Agent Skills-compatible tool.
+> **Embeddings are a derived index. Knowledge lives in git.**
+
+A skill that helps AI agents extract and organize knowledge from work sessions.
+Works with Claude Code, OpenCode, Codex, Cursor, and any Agent Skills-compatible tool.
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![npm version](https://img.shields.io/npm/v/@memory-forge/embeddings.svg)](https://www.npmjs.com/package/@memory-forge/embeddings)
@@ -15,7 +17,7 @@ Memory Forge is a **skill** (a set of instructions) that teaches AI agents to:
 3. **Route** knowledge correctly in monorepos (which module's docs?)
 4. **Format** knowledge for maximum future retrieval
 
-**It's not another RAG.** It's an architecture for coexisting with autoload context—teaching agents to self-organize their memory without bloating every session.
+**It's not another RAG.** It's an architecture for coexisting with autoload context—helping you organize knowledge without bloating every session.
 
 ## Quick Start
 
