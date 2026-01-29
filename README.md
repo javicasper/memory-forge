@@ -28,12 +28,12 @@ The skill is the foundation. Copy it to your project:
 ```bash
 # For Claude Code
 mkdir -p .claude/skills/memory-forge
-curl -fsSL https://raw.githubusercontent.com/javicasper/memory-forge/main/SKILL.md \
+curl -fsSL https://raw.githubusercontent.com/javicasper/memory-forge/master/SKILL.md \
   -o .claude/skills/memory-forge/SKILL.md
 
 # For OpenCode / Codex / Others
 mkdir -p .opencode/skill/memory-forge
-curl -fsSL https://raw.githubusercontent.com/javicasper/memory-forge/main/SKILL.md \
+curl -fsSL https://raw.githubusercontent.com/javicasper/memory-forge/master/SKILL.md \
   -o .opencode/skill/memory-forge/SKILL.md
 ```
 
@@ -77,7 +77,7 @@ Make Claude automatically evaluate every task for extractable knowledge:
 ```bash
 # 1. Copy the hook script
 mkdir -p ~/.claude/hooks
-curl -fsSL https://raw.githubusercontent.com/javicasper/memory-forge/main/hooks/memory-forge-activator.sh \
+curl -fsSL https://raw.githubusercontent.com/javicasper/memory-forge/master/hooks/memory-forge-activator.sh \
   -o ~/.claude/hooks/memory-forge-activator.sh
 chmod +x ~/.claude/hooks/memory-forge-activator.sh
 
