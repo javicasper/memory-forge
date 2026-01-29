@@ -1,6 +1,6 @@
 {
   "name": "@memory-forge/embeddings",
-  "version": "1.2.0",
+  "version": "1.2.1",
   "description": "Knowledge system with semantic search for AI coding agents",
   "type": "module",
   "main": "dist/mcp-server.js",
