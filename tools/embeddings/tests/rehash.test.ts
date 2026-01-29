@@ -83,10 +83,10 @@ This is the UPDATED content about database migrations.
       // Index initially
       await syncProject(tempDir);
 
-      // Read original manifest
+      // Read original manifest (uses relative paths for portability)
       const manifestPath = join(tempDir, '.memory-forge/manifest.json');
       const manifestBefore = JSON.parse(readFileSync(manifestPath, 'utf-8'));
-      const hashBefore = manifestBefore.files[join(tempDir, 'knowledge/test-doc.md')];
+      const hashBefore = manifestBefore.files['knowledge/test-doc.md'];
 
       // Modify file
       writeFileSync(
@@ -99,7 +99,7 @@ This is the UPDATED content about database migrations.
 
       // Verify manifest updated
       const manifestAfter = JSON.parse(readFileSync(manifestPath, 'utf-8'));
-      const hashAfter = manifestAfter.files[join(tempDir, 'knowledge/test-doc.md')];
+      const hashAfter = manifestAfter.files['knowledge/test-doc.md'];
 
       expect(hashAfter).not.toBe(hashBefore);
     });

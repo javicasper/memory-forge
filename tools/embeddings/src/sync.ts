@@ -151,6 +151,7 @@ export function checkModelConsistency(projectRoot: string): boolean {
 
 /**
  * Get files that need indexing (new or changed) using content hash
+ * Uses relative paths in manifest for portability
  */
 export function getFilesToIndex(
   projectRoot: string,
@@ -161,13 +162,16 @@ export function getFilesToIndex(
 
   const toIndex: string[] = [];
   const unchanged: string[] = [];
-  const currentFiles = new Set(files);
+
+  // Build set of current relative paths for comparison
+  const currentRelativePaths = new Set(files.map(f => relative(projectRoot, f)));
 
   // Check each file
   for (const file of files) {
+    const relativePath = relative(projectRoot, file);
     const content = readFileSync(file, 'utf-8');
     const contentHash = computeHash(content);
-    const manifestHash = manifest.files[file];
+    const manifestHash = manifest.files[relativePath];
 
     if (!manifestHash || manifestHash !== contentHash) {
       // New or changed file
@@ -180,15 +184,17 @@ export function getFilesToIndex(
 
   // Find removed files (in manifest but not in current files)
   const toRemove: string[] = [];
-  for (const existingPath of Object.keys(manifest.files)) {
-    if (!currentFiles.has(existingPath)) {
-      toRemove.push(existingPath);
+  for (const existingRelPath of Object.keys(manifest.files)) {
+    if (!currentRelativePaths.has(existingRelPath)) {
+      // Convert back to absolute for removal operations
+      toRemove.push(join(projectRoot, existingRelPath));
     }
   }
 
   // Also check indexed files not in current set
   for (const existing of indexed) {
-    if (!currentFiles.has(existing.path) && !toRemove.includes(existing.path)) {
+    const existingRelPath = relative(projectRoot, existing.path);
+    if (!currentRelativePaths.has(existingRelPath) && !toRemove.includes(existing.path)) {
       toRemove.push(existing.path);
     }
   }
@@ -267,16 +273,18 @@ export async function ensureIndexFresh(projectRoot: string): Promise<boolean> {
   // Remove deleted files
   for (const file of toRemove) {
     removeFile(projectRoot, file);
-    delete manifest.files[file];
+    const relativePath = relative(projectRoot, file);
+    delete manifest.files[relativePath];
   }
 
   // Index new/changed files
   for (const file of toIndex) {
     await indexFile(projectRoot, file);
 
-    // Update manifest with new hash
+    // Update manifest with new hash (using relative path for portability)
+    const relativePath = relative(projectRoot, file);
     const content = readFileSync(file, 'utf-8');
-    manifest.files[file] = computeHash(content);
+    manifest.files[relativePath] = computeHash(content);
   }
 
   // Save updated manifest and record model
@@ -318,24 +326,26 @@ export async function syncProject(projectRoot: string): Promise<SyncResult> {
   // Remove deleted files
   for (const file of toRemove) {
     removeFile(projectRoot, file);
-    delete manifest.files[file];
+    const relativePath = relative(projectRoot, file);
+    delete manifest.files[relativePath];
     result.removed.push(file);
-    console.log(`Removed: ${relative(projectRoot, file)}`);
+    console.log(`Removed: ${relativePath}`);
   }
 
   // Index new/changed files
   for (const file of toIndex) {
-    const wasIndexed = manifest.files[file] !== undefined;
+    const relativePath = relative(projectRoot, file);
+    const wasIndexed = manifest.files[relativePath] !== undefined;
 
     console.log(
-      `${wasIndexed ? 'Re-indexing' : 'Indexing'}: ${relative(projectRoot, file)}`
+      `${wasIndexed ? 'Re-indexing' : 'Indexing'}: ${relativePath}`
     );
 
     const chunkCount = await indexFile(projectRoot, file);
 
-    // Update manifest with new hash
+    // Update manifest with new hash (using relative path for portability)
     const content = readFileSync(file, 'utf-8');
-    manifest.files[file] = computeHash(content);
+    manifest.files[relativePath] = computeHash(content);
 
     if (wasIndexed) {
       result.updated.push(file);
