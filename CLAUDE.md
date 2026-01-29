@@ -14,6 +14,8 @@ Memory Forge is a **knowledge system**, not a tool. It's a skill (set of instruc
 
 ```
 SKILL.md                      # The main skill (canonical location)
+hooks/
+└── memory-forge-activator.sh # Auto-activation hook for Claude Code
 .claude/skills/memory-forge/
 └── SKILL.md → ../../../SKILL.md  # Symlink for Claude Code
 .opencode/skill/memory-forge/

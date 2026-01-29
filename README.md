@@ -70,6 +70,39 @@ These are **separate installations**. Installing one does not install the other.
 - **Only MCP** → Tools are available, but agent lacks guidance on when to use them
 - **Skill + MCP** → Full experience (recommended). Agent knows when to extract, tools handle where to save and how to search.
 
+### + Auto-Activation Hook (Claude Code only)
+
+Make Claude automatically evaluate every task for extractable knowledge:
+
+```bash
+# 1. Copy the hook script
+mkdir -p ~/.claude/hooks
+curl -fsSL https://raw.githubusercontent.com/javicasper/memory-forge/main/hooks/memory-forge-activator.sh \
+  -o ~/.claude/hooks/memory-forge-activator.sh
+chmod +x ~/.claude/hooks/memory-forge-activator.sh
+
+# 2. Add to ~/.claude/settings.json
+```
+
+```json
+{
+  "hooks": {
+    "UserPromptSubmit": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "~/.claude/hooks/memory-forge-activator.sh"
+          }
+        ]
+      }
+    ]
+  }
+}
+```
+
+This injects a reminder after each prompt, so Claude evaluates whether the task produced knowledge worth preserving. Without this, you need to manually call `/memory-forge`.
+
 ## Usage
 
 After completing a task that required investigation or discovery:
