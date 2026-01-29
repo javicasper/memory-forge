@@ -355,6 +355,13 @@ ACTION: Calling save_knowledge
 - content: "Increase pool size to 50..."
 ```
 
+**Without MCP (fallback):** Same evaluation, different action:
+
+```
+ACTION: Create skill file
+→ .claude/skills/mongodb-pool-exhaustion/SKILL.md
+```
+
 ## Integration with Hooks
 
 The activation hook should be configured to remind developers to evaluate learning:
