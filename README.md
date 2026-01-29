@@ -1,55 +1,57 @@
 # Memory Forge
 
-A knowledge system that teaches AI coding agents how to learn from work sessions and forge that knowledge into permanent memory.
+> **Teach AI agents to learn from their work and forge knowledge into permanent memory.**
+> Works with Claude Code, OpenCode, Codex, Cursor, and any Agent Skills-compatible tool.
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![npm version](https://img.shields.io/npm/v/@memory-forge/embeddings.svg)](https://www.npmjs.com/package/@memory-forge/embeddings)
 
 ## What is Memory Forge?
 
-Memory Forge is **not a tool** - it's a **skill** (a set of instructions) that teaches AI agents to:
+Memory Forge is a **skill** (a set of instructions) that teaches AI agents to:
 
-1. **Recognize** when valuable knowledge has been discovered
+1. **Recognize** when valuable knowledge has been discovered during work
 2. **Decide** where that knowledge belongs (CLAUDE.md, AGENTS.md, or a new skill)
 3. **Route** knowledge correctly in monorepos (which module's docs?)
 4. **Format** knowledge for maximum future retrieval
 
+**It's not another RAG.** It's an architecture for coexisting with autoload context—teaching agents to self-organize their memory without bloating every session.
+
 ## Quick Start
 
-### Option 1: MCP Server (Recommended)
+### The Skill (Core)
 
-Install the MCP server for semantic search across your knowledge base:
+The skill is the foundation. Copy it to your project:
 
 ```bash
-# Add to Claude Code
-claude mcp add memory-forge -- npx -y @memory-forge/embeddings
+# For Claude Code
+mkdir -p .claude/skills/memory-forge
+curl -fsSL https://raw.githubusercontent.com/javicasper/memory-forge/main/.claude/skills/memory-forge/SKILL.md \
+  -o .claude/skills/memory-forge/SKILL.md
 
-# Verify installation
-claude mcp list
+# For OpenCode / Codex / Others
+mkdir -p .opencode/skill/memory-forge
+curl -fsSL https://raw.githubusercontent.com/javicasper/memory-forge/main/.claude/skills/memory-forge/SKILL.md \
+  -o .opencode/skill/memory-forge/SKILL.md
 ```
 
-This gives you:
+That's it. The agent now knows how to extract and route knowledge.
+
+### + MCP Server (Optional Power-Up)
+
+Add semantic search for large knowledge bases:
+
+```bash
+claude mcp add memory-forge -- npx -y @memory-forge/embeddings
+```
+
+This adds:
 - `search_knowledge` - Semantic search (finds "auth errors" when you search "login problems")
 - `save_knowledge` - Save skills and context to `knowledge/`
 - `index_knowledge` - Manually trigger reindexing
 - `audit_knowledge` - Check token usage in autoload files
 
-### Option 2: Skill Only (No MCP)
-
-Copy the skill to your project:
-
-```bash
-# For Claude Code
-mkdir -p .claude/skills
-curl -fsSL https://raw.githubusercontent.com/javicasper/memory-forge/main/.claude/skills/memory-forge/SKILL.md \
-  -o .claude/skills/memory-forge/SKILL.md
-
-# For OpenCode (also reads .claude/skills/)
-mkdir -p .opencode/skill
-curl -fsSL https://raw.githubusercontent.com/javicasper/memory-forge/main/.claude/skills/memory-forge/SKILL.md \
-  -o .opencode/skill/memory-forge/SKILL.md
-```
-
-The skill teaches the agent to extract knowledge, but without MCP you won't have semantic search.
+**Why optional?** The skill works standalone. The MCP adds ~98% token reduction for projects with large knowledge bases by indexing `knowledge/` separately from autoload files.
 
 ## Usage
 
@@ -171,6 +173,29 @@ Memory Forge builds on ideas from:
 1. **Monorepo-native** - Routes knowledge to the correct module's docs
 2. **CLI-agnostic** - Works with any tool that supports Agent Skills
 3. **Decision framework** - Clear rules for skills vs docs
+
+## Architecture Philosophy
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│  AUTOLOAD (always in context)     │  INDEXED (on-demand)   │
+├───────────────────────────────────┼────────────────────────┤
+│  CLAUDE.md                        │  knowledge/*.md        │
+│  AGENTS.md                        │                        │
+│  .claude/skills/                  │                        │
+│  .opencode/skill/                 │                        │
+├───────────────────────────────────┼────────────────────────┤
+│  ~500-2000 tokens (stub)          │  Unlimited (searched)  │
+│  Every session                    │  Only when relevant    │
+└───────────────────────────────────┴────────────────────────┘
+```
+
+**Key insight:** Autoload files are already loaded every session. Indexing them would duplicate tokens. Instead:
+- Keep autoload files **small** (stubs, pointers)
+- Put detailed knowledge in `knowledge/`
+- Search semantically when needed
+
+The MCP's `audit_knowledge` tool helps monitor autoload bloat.
 
 ## License
 
